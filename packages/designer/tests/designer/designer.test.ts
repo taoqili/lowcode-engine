@@ -1,16 +1,24 @@
 import '../fixtures/window';
-import { Editor, globalContext } from '@alilc/lowcode-editor-core';
+import { Editor, globalContext, Setters } from '@alilc/lowcode-editor-core';
 import { Project } from '../../src/project/project';
 import { DocumentModel } from '../../src/document/document-model';
 import { Designer } from '../../src/designer/designer';
-import { Dragon, DragObjectType } from '../../src/designer/dragon';
-import { TransformStage } from '../../src/document/node/transform-stage';
+import { Dragon } from '../../src/designer/dragon';
+// import { TransformStage } from '../../src/document/node/transform-stage';
 import formSchema from '../fixtures/schema/form';
 import buttonMetadata from '../fixtures/component-metadata/button';
 import pageMetadata from '../fixtures/component-metadata/page';
 import divMetadata from '../fixtures/component-metadata/div';
 import { delayObxTick } from '../utils';
 import { fireEvent } from '@testing-library/react';
+import { IPublicEnumDragObjectType, IPublicEnumTransformStage } from '@alilc/lowcode-types';
+import { shellModelFactory } from '../../../engine/src/modules/shell-model-factory';
+
+const mockNode = {
+  internalToShellNode() {
+    return 'mockNode';
+  },
+};
 
 describe('Designer 测试', () => {
   let editor: Editor;
@@ -21,11 +29,13 @@ describe('Designer 测试', () => {
 
   beforeAll(() => {
     editor = new Editor();
+    const setters = new Setters();
+    editor.set('setters', setters);
     !globalContext.has(Editor) && globalContext.register(editor, Editor);
   });
 
   beforeEach(() => {
-    designer = new Designer({ editor });
+    designer = new Designer({ editor, shellModelFactory });
     project = designer.project;
     doc = project.createDocument(formSchema);
     dragon = new Dragon(designer);
@@ -41,7 +51,7 @@ describe('Designer 测试', () => {
   });
 
   describe('onDragstart / onDrag / onDragend', () => {
-    it('DragObjectType.Node', () => {
+    it('IPublicEnumDragObjectType.Node', () => {
       const dragStartMockFn = jest.fn();
       const dragMockFn = jest.fn();
       const dragEndMockFn = jest.fn();
@@ -51,6 +61,7 @@ describe('Designer 测试', () => {
 
       const designer = new Designer({
         editor,
+        shellModelFactory,
         onDragstart: dragStartMockFn,
         onDrag: dragMockFn,
         onDragend: dragEndMockFn,
@@ -62,7 +73,7 @@ describe('Designer 测试', () => {
 
       dragon.boost(
         {
-          type: DragObjectType.Node,
+          type: IPublicEnumDragObjectType.Node,
           nodes: [doc.getNode('node_k1ow3cbn')],
         },
         new MouseEvent('mousedown', { clientX: 100, clientY: 100 }),
@@ -92,6 +103,7 @@ describe('Designer 测试', () => {
               return x;
             },
             insert() {},
+            internalInsert() {},
           },
         };
         const mockDetail = { type: 'Children', index: 1, near: { node: { x: 1 } } };
@@ -107,7 +119,7 @@ describe('Designer 测试', () => {
       }
     });
 
-    it('DragObjectType.NodeData', () => {
+    it('IPublicEnumDragObjectType.NodeData', () => {
       const dragStartMockFn = jest.fn();
       const dragMockFn = jest.fn();
       const dragEndMockFn = jest.fn();
@@ -117,6 +129,7 @@ describe('Designer 测试', () => {
 
       const designer = new Designer({
         editor,
+        shellModelFactory,
         onDragstart: dragStartMockFn,
         onDrag: dragMockFn,
         onDragend: dragEndMockFn,
@@ -128,7 +141,7 @@ describe('Designer 测试', () => {
 
       dragon.boost(
         {
-          type: DragObjectType.NodeData,
+          type: IPublicEnumDragObjectType.NodeData,
           data: [{
             componentName: 'Button',
           }],
@@ -160,6 +173,7 @@ describe('Designer 测试', () => {
               return x;
             },
             insert() {},
+            internalInsert() {},
           },
         };
         const mockDetail = { type: 'Children', index: 1, near: { node: { x: 1 } } };
@@ -178,56 +192,56 @@ describe('Designer 测试', () => {
 
   it('addPropsReducer / transformProps', () => {
     // 没有相应的 reducer
-    expect(designer.transformProps({ num: 1 }, TransformStage.Init)).toEqual({ num: 1 });
+    expect(designer.transformProps({ num: 1 }, mockNode, IPublicEnumTransformStage.Init)).toEqual({ num: 1 });
     // props 是数组
-    expect(designer.transformProps([{ num: 1 }], TransformStage.Init)).toEqual([{ num: 1 }]);
+    expect(designer.transformProps([{ num: 1 }], mockNode, IPublicEnumTransformStage.Init)).toEqual([{ num: 1 }]);
 
     designer.addPropsReducer((props, node) => {
       props.num += 1;
       return props;
-    }, TransformStage.Init);
+    }, IPublicEnumTransformStage.Init);
 
     designer.addPropsReducer((props, node) => {
       props.num += 1;
       return props;
-    }, TransformStage.Init);
+    }, IPublicEnumTransformStage.Init);
 
     designer.addPropsReducer((props, node) => {
       props.num += 1;
       return props;
-    }, TransformStage.Clone);
+    }, IPublicEnumTransformStage.Clone);
 
     designer.addPropsReducer((props, node) => {
       props.num += 1;
       return props;
-    }, TransformStage.Serilize);
+    }, IPublicEnumTransformStage.Serilize);
 
     designer.addPropsReducer((props, node) => {
       props.num += 1;
       return props;
-    }, TransformStage.Render);
+    }, IPublicEnumTransformStage.Render);
 
     designer.addPropsReducer((props, node) => {
       props.num += 1;
       return props;
-    }, TransformStage.Save);
+    }, IPublicEnumTransformStage.Save);
 
     designer.addPropsReducer((props, node) => {
       props.num += 1;
       return props;
-    }, TransformStage.Upgrade);
+    }, IPublicEnumTransformStage.Upgrade);
 
-    expect(designer.transformProps({ num: 1 }, {}, TransformStage.Init)).toEqual({ num: 3 });
-    expect(designer.transformProps({ num: 1 }, {}, TransformStage.Clone)).toEqual({ num: 2 });
-    expect(designer.transformProps({ num: 1 }, {}, TransformStage.Serilize)).toEqual({ num: 2 });
-    expect(designer.transformProps({ num: 1 }, {}, TransformStage.Render)).toEqual({ num: 2 });
-    expect(designer.transformProps({ num: 1 }, {}, TransformStage.Save)).toEqual({ num: 2 });
-    expect(designer.transformProps({ num: 1 }, {}, TransformStage.Upgrade)).toEqual({ num: 2 });
+    expect(designer.transformProps({ num: 1 }, mockNode, IPublicEnumTransformStage.Init)).toEqual({ num: 3 });
+    expect(designer.transformProps({ num: 1 }, mockNode, IPublicEnumTransformStage.Clone)).toEqual({ num: 2 });
+    expect(designer.transformProps({ num: 1 }, mockNode, IPublicEnumTransformStage.Serilize)).toEqual({ num: 2 });
+    expect(designer.transformProps({ num: 1 }, mockNode, IPublicEnumTransformStage.Render)).toEqual({ num: 2 });
+    expect(designer.transformProps({ num: 1 }, mockNode, IPublicEnumTransformStage.Save)).toEqual({ num: 2 });
+    expect(designer.transformProps({ num: 1 }, mockNode, IPublicEnumTransformStage.Upgrade)).toEqual({ num: 2 });
 
     designer.addPropsReducer((props, node) => {
       throw new Error('calculate error');
-    }, TransformStage.Upgrade);
-    expect(designer.transformProps({ num: 1 }, {}, TransformStage.Upgrade)).toEqual({ num: 2 });
+    }, IPublicEnumTransformStage.Upgrade);
+    expect(designer.transformProps({ num: 1 }, mockNode, IPublicEnumTransformStage.Upgrade)).toEqual({ num: 2 });
   });
 
   it('setProps', () => {
@@ -238,14 +252,18 @@ describe('Designer 测试', () => {
       suspensed: true,
       componentMetadatas: [buttonMetadata, divMetadata],
     };
-    designer = new Designer({ editor, ...initialProps });
+    designer = new Designer({
+      editor,
+      shellModelFactory,
+      ...initialProps,
+     });
 
     expect(designer.simulatorComponent).toEqual({ isSimulatorComp: true });
     expect(designer.simulatorProps).toEqual({ designMode: 'design' });
     expect(designer.suspensed).toBeTruthy();
-    expect(designer._componentMetasMap.has('Div')).toBeTruthy();
-    expect(designer._componentMetasMap.has('Button')).toBeTruthy();
-    const { editor: editorFromDesigner, ...others } = designer.props;
+    expect((designer as any)._componentMetasMap.has('Div')).toBeTruthy();
+    expect((designer as any)._componentMetasMap.has('Button')).toBeTruthy();
+    const { editor: editorFromDesigner, shellModelFactory: shellModelFactoryFromDesigner, ...others } = (designer as any).props;
     expect(others).toEqual(initialProps);
     expect(designer.get('simulatorProps')).toEqual({ designMode: 'design' });
     expect(designer.get('suspensed')).toBeTruthy();
@@ -263,10 +281,22 @@ describe('Designer 测试', () => {
     expect(designer.simulatorComponent).toEqual({ isSimulatorComp2: true });
     expect(designer.simulatorProps).toEqual({ designMode: 'live' });
     expect(designer.suspensed).toBeFalsy();
-    expect(designer._componentMetasMap.has('Button')).toBeTruthy();
-    expect(designer._componentMetasMap.has('Div')).toBeTruthy();
-    const { editor: editorFromDesigner2, ...others2 } = designer.props;
+    expect((designer as any)._componentMetasMap.has('Button')).toBeTruthy();
+    expect((designer as any)._componentMetasMap.has('Div')).toBeTruthy();
+    const { editor: editorFromDesigner2, shellModelFactory: shellModelFactoryFromDesigner2,  ...others2 } = (designer as any).props;
     expect(others2).toEqual(updatedProps);
+
+    // 第三次设置 props，跟第二次值一样，for 覆盖率测试
+    const updatedProps2 = updatedProps;
+    designer.setProps(updatedProps2);
+
+    expect(designer.simulatorComponent).toEqual({ isSimulatorComp2: true });
+    expect(designer.simulatorProps).toEqual({ designMode: 'live' });
+    expect(designer.suspensed).toBeFalsy();
+    expect((designer as any)._componentMetasMap.has('Button')).toBeTruthy();
+    expect((designer as any)._componentMetasMap.has('Div')).toBeTruthy();
+    const { editor: editorFromDesigner3, shellModelFactory: shellModelFactoryFromDesigner3, ...others3 } = (designer as any).props;
+    expect(others3).toEqual(updatedProps);
   });
 
   describe('getSuitableInsertion', () => {
@@ -307,6 +337,70 @@ describe('Designer 测试', () => {
     });
   });
 
+  it('getComponentMetasMap', () => {
+    designer.createComponentMeta({
+      componentName: 'Div',
+      title: '容器',
+      docUrl: 'http://gitlab.alibaba-inc.com/vision-components/vc-block/blob/master/README.md',
+      devMode: 'procode',
+      tags: ['布局'],
+    });
+
+    expect(designer.getComponentMetasMap().get('Div')).not.toBeUndefined();
+  });
+
+  it('refreshComponentMetasMap', () => {
+    designer.createComponentMeta({
+      componentName: 'Div',
+      title: '容器',
+      docUrl: 'http://gitlab.alibaba-inc.com/vision-components/vc-block/blob/master/README.md',
+      devMode: 'procode',
+      tags: ['布局'],
+    });
+
+    const originalMetasMap = designer.getComponentMetasMap();
+    designer.refreshComponentMetasMap();
+
+    expect(originalMetasMap).not.toBe(designer.getComponentMetasMap());
+  });
+
+  describe('loadIncrementalAssets', () => {
+    it('components && packages', async () => {
+      editor.set('assets', { components: [], packages: [] });
+      const fn = jest.fn();
+
+      project.mountSimulator({
+        setupComponents: fn,
+      });
+      await designer.loadIncrementalAssets({
+        components: [{
+          componentName: 'Div2',
+          title: '容器',
+          docUrl: 'http://gitlab.alibaba-inc.com/vision-components/vc-block/blob/master/README.md',
+          devMode: 'proCode',
+          tags: ['布局'],
+        }],
+        packages: [],
+      });
+
+      const comps = editor.get('assets').components;
+      expect(comps).toHaveLength(1);
+      expect(fn).toHaveBeenCalled();
+    });
+
+    it('no components && packages', async () => {
+      editor.set('assets', { components: [], packages: [] });
+      const fn = jest.fn();
+
+      project.mountSimulator({
+        setupComponents: fn,
+      });
+      await designer.loadIncrementalAssets({});
+
+      expect(fn).not.toHaveBeenCalled();
+    });
+  });
+
   it('createLocation / clearLocation', () => {
     const mockTarget = {
       document: doc,
@@ -315,6 +409,7 @@ describe('Designer 测试', () => {
           return x;
         },
         insert() {},
+        internalInsert() {},
       },
     };
     const mockDetail = { type: 'Children', index: 1, near: { node: { x: 1 } } };
@@ -339,6 +434,7 @@ describe('Designer 测试', () => {
             return x;
           },
           insert() {},
+          internalInsert() {},
         },
       },
       detail: mockDetail,

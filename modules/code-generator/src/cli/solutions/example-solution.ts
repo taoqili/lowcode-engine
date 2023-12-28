@@ -289,8 +289,8 @@ codealike.json
       },
       "lifeCycles": {
         "componentDidMount": {
-          "type": "JSExpression",
-          "value": "function() { console.log('componentDidMount'); }"
+          "type": "JSFunction",
+          "value": "function componentDidMount() {\\n  console.log('componentDidMount');\\n}"
         }
       },
       "methodsModule": {
@@ -309,7 +309,7 @@ codealike.json
             "type": "fetch",
             "options": {
               "method": "GET",
-              "uri": "https://shs.alibaba-inc.com/mock/1458/demo/user",
+              "uri": "https://shs.xxx.com/mock/1458/demo/user",
               "isSync": true
             },
             "dataHandler": {
@@ -323,7 +323,7 @@ codealike.json
             "type": "fetch",
             "options": {
               "method": "GET",
-              "uri": "https://shs.alibaba-inc.com/mock/1458/demo/orders",
+              "uri": "https://shs.xxx.com/mock/1458/demo/orders",
               "isSync": true
             },
             "dataHandler": {
@@ -467,7 +467,7 @@ codealike.json
   ],
   "constants": {
     "ENV": "prod",
-    "DOMAIN": "xxx.alibaba-inc.com"
+    "DOMAIN": "xxx.xxx.com"
   },
   "css": "body {font-size: 12px;} .table { width: 100px;}",
   "config": {
@@ -556,11 +556,11 @@ codealike.json
   "author": "",
   "license": "ISC",
   "publishConfig": {
-    "registry": "https://registry.npm.alibaba-inc.com"
+    "registry": "https://registry.npm.xxx.com"
   },
   "dependencies": {
-    "@alilc/lowcode-code-generator": "^1.0.0-beta.16",
-    "@alilc/lowcode-types": "^1.0.0-beta.21",
+    "@alilc/lowcode-code-generator": "^1.0.0",
+    "@alilc/lowcode-types": "^1.0.0",
     "tslib": "^2.3.0"
   },
   "devDependencies": {
@@ -635,17 +635,20 @@ export default function createHelloWorldProjectBuilder() {
     template: CodeGen.solutionParts.icejs.template,
     plugins: {
       components: [
-        CodeGen.plugins.react.reactCommonDeps(),
-        CodeGen.plugins.common.esmodule({ fileType: 'jsx' }),
-        CodeGen.plugins.react.containerClass(),
-        CodeGen.plugins.react.containerInjectUtils(),
-        CodeGen.plugins.react.containerInjectDataSourceEngine(),
-        CodeGen.plugins.react.containerInjectI18n(),
-        CodeGen.plugins.react.containerInitState(),
-        CodeGen.plugins.react.containerLifeCycle(),
-        CodeGen.plugins.react.containerMethod(),
+        CodeGen.plugins.icejs.reactCommonDeps(),
+        CodeGen.plugins.common.esModule({ fileType: 'jsx' }),
+        CodeGen.plugins.common.styleImport(),
+        CodeGen.plugins.icejs.containerClass(),
+        CodeGen.plugins.icejs.containerInjectContext(),
+        CodeGen.plugins.icejs.containerInjectUtils(),
+        CodeGen.plugins.icejs.containerInjectDataSourceEngine(),
+        CodeGen.plugins.icejs.containerInjectI18n(),
+        CodeGen.plugins.icejs.containerInjectConstants(),
+        CodeGen.plugins.icejs.containerInitState(),
+        CodeGen.plugins.icejs.containerLifeCycle(),
+        CodeGen.plugins.icejs.containerMethod(),
         examplePlugin(),
-        CodeGen.plugins.react.jsx({
+        CodeGen.plugins.icejs.jsx({
           nodeTypeMapping: {
             Div: 'div',
             Component: 'div',
@@ -656,17 +659,20 @@ export default function createHelloWorldProjectBuilder() {
         CodeGen.plugins.style.css(),
       ],
       pages: [
-        CodeGen.plugins.react.reactCommonDeps(),
-        CodeGen.plugins.common.esmodule({ fileType: 'jsx' }),
-        CodeGen.plugins.react.containerClass(),
-        CodeGen.plugins.react.containerInjectUtils(),
-        CodeGen.plugins.react.containerInjectDataSourceEngine(),
-        CodeGen.plugins.react.containerInjectI18n(),
-        CodeGen.plugins.react.containerInitState(),
-        CodeGen.plugins.react.containerLifeCycle(),
-        CodeGen.plugins.react.containerMethod(),
+        CodeGen.plugins.icejs.reactCommonDeps(),
+        CodeGen.plugins.common.esModule({ fileType: 'jsx' }),
+        CodeGen.plugins.common.styleImport(),
+        CodeGen.plugins.icejs.containerClass(),
+        CodeGen.plugins.icejs.containerInjectContext(),
+        CodeGen.plugins.icejs.containerInjectUtils(),
+        CodeGen.plugins.icejs.containerInjectDataSourceEngine(),
+        CodeGen.plugins.icejs.containerInjectI18n(),
+        CodeGen.plugins.icejs.containerInjectConstants(),
+        CodeGen.plugins.icejs.containerInitState(),
+        CodeGen.plugins.icejs.containerLifeCycle(),
+        CodeGen.plugins.icejs.containerMethod(),
         examplePlugin(),
-        CodeGen.plugins.react.jsx({
+        CodeGen.plugins.icejs.jsx({
           nodeTypeMapping: {
             Div: 'div',
             Component: 'div',
@@ -677,13 +683,13 @@ export default function createHelloWorldProjectBuilder() {
         CodeGen.plugins.style.css(),
       ],
       router: [
-        CodeGen.plugins.common.esmodule(),
+        CodeGen.plugins.common.esModule(),
         CodeGen.solutionParts.icejs.plugins.router(),
       ],
       entry: [CodeGen.solutionParts.icejs.plugins.entry()],
       constants: [CodeGen.plugins.project.constants()],
       utils: [
-        CodeGen.plugins.common.esmodule(),
+        CodeGen.plugins.common.esModule(),
         CodeGen.plugins.project.utils('react'),
       ],
       i18n: [CodeGen.plugins.project.i18n()],

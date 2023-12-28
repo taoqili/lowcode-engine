@@ -4,12 +4,13 @@ import cn from 'classnames';
 import { Node } from '@alilc/lowcode-designer';
 import LowCodeRenderer from '@alilc/lowcode-react-renderer';
 import { observer } from 'mobx-react';
-import { getClosestNode, isFromVC } from '@alilc/lowcode-utils';
+import { getClosestNode, isFromVC, isReactComponent } from '@alilc/lowcode-utils';
 import { GlobalEvent } from '@alilc/lowcode-types';
 import { SimulatorRendererContainer, DocumentInstance } from './renderer';
 import { host } from './host';
-
+import { isRendererDetached } from './utils/misc';
 import './renderer.less';
+import { createIntl } from './locale';
 
 // patch cloneElement avoid lost keyProps
 const originCloneElement = window.React.cloneElement;
@@ -130,6 +131,7 @@ class Renderer extends Component<{
   documentInstance: DocumentInstance;
 }> {
   startTime: number | null = null;
+  schemaChangedSymbol = false;
 
   componentDidUpdate() {
     this.recordTime();
@@ -139,7 +141,7 @@ class Renderer extends Component<{
     if (this.startTime) {
       const time = Date.now() - this.startTime;
       const nodeCount = host.designer.currentDocument?.getNodeCount?.();
-      host.designer.editor?.emit(GlobalEvent.Node.Rerender, {
+      host.designer.editor?.eventBus.emit(GlobalEvent.Node.Rerender, {
         componentName: 'Renderer',
         type: 'All',
         time,
@@ -151,8 +153,6 @@ class Renderer extends Component<{
   componentDidMount() {
     this.recordTime();
   }
-
-  schemaChangedSymbol = false;
 
   getSchemaChangedSymbol = () => {
     return this.schemaChangedSymbol;
@@ -170,14 +170,17 @@ class Renderer extends Component<{
     this.startTime = Date.now();
     this.schemaChangedSymbol = false;
 
-    if (!container.autoRender) return null;
+    if (!container.autoRender || isRendererDetached()) {
+      return null;
+    }
+
+    const { intl } = createIntl(locale);
+
     return (
       <LowCodeRenderer
         locale={locale}
         messages={messages}
         schema={documentInstance.schema}
-        deltaData={documentInstance.deltaData}
-        deltaMode={documentInstance.deltaMode}
         components={container.components}
         appHelper={container.context}
         designMode={designMode}
@@ -189,12 +192,16 @@ class Renderer extends Component<{
         setSchemaChangedSymbol={this.setSchemaChangedSymbol}
         getNode={(id: string) => documentInstance.getNode(id) as Node}
         rendererName="PageRenderer"
+        thisRequiredInJSE={host.thisRequiredInJSE}
+        notFoundComponent={host.notFoundComponent}
+        faultComponent={host.faultComponent}
+        faultComponentMap={host.faultComponentMap}
         customCreateElement={(Component: any, props: any, children: any) => {
           const { __id, ...viewProps } = props;
           viewProps.componentId = __id;
           const leaf = documentInstance.getNode(__id) as Node;
           if (isFromVC(leaf?.componentMeta)) {
-            viewProps._leaf = leaf;
+            viewProps._leaf = leaf.internalToShellNode();
           }
           viewProps._componentName = leaf?.componentName;
           // 如果是容器 && 无children && 高宽为空 增加一个占位容器，方便拖动
@@ -204,12 +211,12 @@ class Renderer extends Component<{
             (children == null || (Array.isArray(children) && !children.length)) &&
             (!viewProps.style || Object.keys(viewProps.style).length === 0)
           ) {
-            let defaultPlaceholder = '拖拽组件或模板到这里';
+            let defaultPlaceholder = intl('Drag and drop components or templates here');
             const lockedNode = getClosestNode(leaf, (node) => {
               return node?.getExtraProp('isLocked')?.getValue() === true;
             });
             if (lockedNode) {
-              defaultPlaceholder = '锁定元素及子元素无法编辑';
+              defaultPlaceholder = intl('Locked elements and child elements cannot be edited');
             }
             children = (
               <div className={cn('lc-container-placeholder', { 'lc-container-locked': !!lockedNode })} style={viewProps.placeholderStyle}>
@@ -240,6 +247,11 @@ class Renderer extends Component<{
             });
           }
 
+          if (!isReactComponent(Component)) {
+            console.error(`${viewProps._componentName} is not a react component!`);
+            return null;
+          }
+
           return createElement(
             getDeviceView(Component, device, designMode),
             viewProps,
@@ -251,6 +263,7 @@ class Renderer extends Component<{
         onCompGetRef={(schema: any, ref: ReactInstance | null) => {
           documentInstance.mountInstance(schema.id, ref);
         }}
+        enableStrictNotFoundMode={host.enableStrictNotFoundMode}
       />
     );
   }

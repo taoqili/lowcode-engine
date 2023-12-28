@@ -8,11 +8,15 @@
 
 <div align="center">
 
-一套面向扩展设计的企业级低代码技术体系
+An enterprise-class low-code technology stack with scale-out design
 
 [![NPM version][npm-image]][npm-url] [![NPM downloads][download-image]][download-url]
 
-[![Discussions][discussions-image]][discussions-url] [![][issues-helper-image]][issues-helper-url] [![Issues need help][help-wanted-image]][help-wanted-url]
+[![][issues-helper-image]][issues-helper-url] [![Issues need help][help-wanted-image]][help-wanted-url]
+
+[![codecov][codecov-image-url]][codecov-url] [![Awesome](https://cdn.rawgit.com/sindresorhus/awesome/d7305f38d29fed78fa85652e3a63e154dd8e8829/media/badge.svg)](https://github.com/lowcode-workspace/awesome-lowcode-engine)
+
+[![](https://img.shields.io/badge/LowCodeEngine-Check%20Your%20Contribution-orange)](https://opensource.alibaba.com/contribution_leaderboard/details?projectValue=lowcode-engine)
 
 [npm-image]: https://img.shields.io/npm/v/@alilc/lowcode-engine.svg?style=flat-square
 [npm-url]: http://npmjs.org/package/@alilc/lowcode-engine
@@ -21,41 +25,44 @@
 [download-url]: https://npmjs.org/package/@alilc/lowcode-engine
 [help-wanted-image]: https://flat.badgen.net/github/label-issues/alibaba/lowcode-engine/help%20wanted/open
 [help-wanted-url]: https://github.com/alibaba/lowcode-engine/issues?q=is%3Aopen+is%3Aissue+label%3A%22help+wanted%22
-[discussions-image]: https://img.shields.io/badge/discussions-on%20github-blue?style=flat-square
-[discussions-url]: https://github.com/alibaba/lowcode-engine/discussions
 
 [issues-helper-image]: https://img.shields.io/badge/using-issues--helper-orange?style=flat-square
 [issues-helper-url]: https://github.com/actions-cool/issues-helper
 
+[codecov-image-url]: https://codecov.io/gh/alibaba/lowcode-engine/branch/main/graph/badge.svg
+[codecov-url]: https://codecov.io/gh/alibaba/lowcode-engine
+
 </div>
 
-[![](https://img.alicdn.com/imgextra/i4/O1CN01GhzQuE1rnenyCCQTF_!!6000000005676-0-tps-2878-1588.jpg)](http://lowcode-engine.cn)
+[![](https://img.alicdn.com/imgextra/i2/O1CN01UhoS7C1sNNhySvfWi_!!6000000005754-2-tps-2878-1588.png)](http://lowcode-engine.cn)
 
-## ✨ 特性
+English | [简体中文](./packages/engine/README-zh_CN.md)
 
-- 🌈 提炼自企业级低代码平台的面向扩展开发的内核引擎，奉行最小内核，最强生态的设计理念
-- 📦 开箱即用的高质量生态元素，包括 物料体系、设置器、插件 等
-- ⚙️ 完善的工具链，支持 物料体系、设置器、插件 等生态元素的全链路研发周期
-- 🔌 强大的扩展能力，已支撑近 100 个各种垂直类低代码平台
-- 🛡 使用 TypeScript 开发，提供完整的类型定义文件
+## ✨ Features
 
-## 🎯 兼容环境
+- 🌈 An extension-oriented kernel engine extracted from an enterprise-level low-code platform, pursuing the design concept of the smallest kernel and the strongest ecology
+- 📦 Out-of-the-box high-quality ecological elements, including material systems, setters, plugins, etc.
+- ⚙️ A complete tool chain, supporting the full-link R&D cycle of ecological elements such as material systems, setters, and plug-ins
+- 🔌 Powerful expansion capability, has supported nearly 100 various vertical low-code platforms
+- 🛡 Developed with TypeScript, providing complete type definition files
 
-- 现代浏览器（Chrome >= 80, Edge >= 80, last 2 safari versions, last 2 firefox versions）
+## 🎯 Compatible Environments
 
-## 📚 引擎协议
+- Modern browsers (Chrome >= 80, Edge >= 80, last 2 safari versions, last 2 firefox versions)
 
-引擎完整实现了《阿里巴巴中后台前端基础搭建协议规范》和《阿里巴巴中后台前端物料协议规范》，协议栈是低代码领域的物料能否流通的关键部分。
+## 📚 Engine Protocol
 
-![image](https://user-images.githubusercontent.com/1195765/150266126-fef3e3a9-d6a4-4f8e-8592-745f1a344162.png)
+The engine fully implements the "LowCodeEngine Basic Construction Protocol Specification" and "LowCodeEngine Material Protocol Specification". The protocol stack is a key part of whether materials in the low-code field can be circulated.
 
-## 🌰 使用示例
+![image](https://img.alicdn.com/imgextra/i3/O1CN01IisBcy1dNBIg16QFM_!!6000000003723-2-tps-1916-1070.png)
+
+## 🌰 Usage example
 
 ```bash
 npm install @alilc/lowcode-engine --save-dev
 ```
 
-> **TIPS：仅支持 cdn 方式引入，npm 包用于提供 typings 等代码提示能力**
+> **TIPS: Only cdn import is supported, npm package is used to provide code hinting capabilities such as typings**
 
 ```ts
 import { init, skeleton } from '@alilc/lowcode-engine';
@@ -64,7 +71,7 @@ skeleton.add({
   area: 'topArea',
   type: 'Widget',
   name: 'logo',
-  content: YourFantaticLogo,
+  content: YourFantasticLogo,
   contentProps: {
     logo:
       'https://img.alicdn.com/tfs/TB1_SocGkT2gK0jSZFkXXcIQFXa-66-66.png',
@@ -79,7 +86,7 @@ skeleton.add({
 init(document.getElementById('lce'));
 ```
 
-### 工程化配置：
+### Engineering configuration:
 ```json
 {
   "externals": {
@@ -89,43 +96,52 @@ init(document.getElementById('lce'));
 }
 ```
 
-### cdn 可选方式：
-#### 方式 1：alifd cdn
+### cdn optional method:
+#### Method 1: alifd cdn
 ```html
-https://alifd.alicdn.com/npm/@alilc/lowcode-engine@1.0.0/dist/js/engine-core.js
+https://alifd.alicdn.com/npm/@alilc/lowcode-engine@1.0.18/dist/js/engine-core.js
 
-https://alifd.alicdn.com/npm/@alilc/lowcode-react-simulator-renderer@1.0.0/dist/js/react-simulator-renderer.js
+https://alifd.alicdn.com/npm/@alilc/lowcode-react-simulator-renderer@1.0.18/dist/js/react-simulator-renderer.js
 ```
 
-#### 方式 2：unpkg
+#### Method 2: uipaas cdn
 ```html
-https://unpkg.com/@alilc/lowcode-engine@1.0.0/dist/js/engine-core.js
+https://uipaas-assets.com/prod/npm/@alilc/lowcode-engine/1.0.18/dist/js/engine-core.js
 
-https://unpkg.com/@alilc/lowcode-react-simulator-renderer@1.0.0/dist/js/react-simulator-renderer.js
+https://uipaas-assets.com/prod/npm/@alilc/lowcode-react-simulator-renderer/1.0.18/dist/js/react-simulator-renderer.js
 ```
 
-#### 方式 3：jsdelivr
+#### Method 3: unpkg
 ```html
-https://cdn.jsdelivr.net/npm/@alilc/lowcode-engine@1.0.0/dist/js/engine-core.js
+https://unpkg.com/@alilc/lowcode-engine@1.0.18/dist/js/engine-core.js
 
-https://cdn.jsdelivr.net/npm/@alilc/lowcode-react-simulator-renderer@1.0.0/dist/js/react-simulator-renderer.js
+https://unpkg.com/@alilc/lowcode-react-simulator-renderer@1.0.18/dist/js/react-simulator-renderer.js
 ```
 
-#### 方式 3：使用自有 cdn
-将源码中 packages/engine/dist 和 packages/(react|rax)-simulator-renderer/dist 下的文件传至你的 cdn 提供商
+#### Method 4: jsdelivr
+```html
+https://cdn.jsdelivr.net/npm/@alilc/lowcode-engine@1.0.18/dist/js/engine-core.js
 
-## 🔗 相关链接
+https://cdn.jsdelivr.net/npm/@alilc/lowcode-react-simulator-renderer@1.0.18/dist/js/react-simulator-renderer.js
+```
 
-- [官网首页](http://lowcode-engine.cn/)
-- [Demo 马上玩](https://alifd.alicdn.com/npm/@alilc/lowcode-demo@1.0.0/build/index.html) | [引擎 Demo 仓库](https://github.com/alibaba/lowcode-demo)
-- [官方物料](https://github.com/alibaba/lowcode-materials)
-- [官方设置器（setter）](https://github.com/alibaba/lowcode-engine-ext)
-- [官方插件（plugin）](https://github.com/alibaba/lowcode-plugins)
-- [用户文档](http://lowcode-engine.cn/doc)
-- [API WIP](http://lowcode-engine.cn/doc?url=vlmeme)
-- [更新日志](http://lowcode-engine.cn/doc?url=engine-changelog)
+#### Method 5: Use your own cdn
+Pass the files under packages/engine/dist and packages/(react|rax)-simulator-renderer/dist in the source code to your cdn provider
 
-## 💻 本地调试
+## 🔗 Related Links
+
+- [Official website home page](http://lowcode-engine.cn/)
+- [Demo Play Now](http://lowcode-engine.cn/demo) | [Engine Demo Repository](https://github.com/alibaba/lowcode-demo)
+- [Official Materials](https://github.com/alibaba/lowcode-materials)
+- [official setter](https://github.com/alibaba/lowcode-engine-ext)
+- [Official plugin (plugin)](https://github.com/alibaba/lowcode-plugins)
+- [Ecological elements (materials, setters, plugins) toolchain](https://lowcode-engine.cn/site/docs/guide/expand/editor/cli)
+- [User Documentation](http://lowcode-engine.cn/doc)
+- [API](https://lowcode-engine.cn/site/docs/api/)
+
+This [awesome-lowcode-engine](https://github.com/lowcode-workspace/awesome-lowcode-engine) page links to a repository which records all of the tools\materials\solutions that use or built for the lowcode-engine, PR is welcomed.
+
+## 💻 Local debugging
 
 ```bash
 $ git clone git@github.com:alibaba/lowcode-engine.git
@@ -135,19 +151,28 @@ $ npm run setup
 $ npm start
 ```
 
-> 📢 npm 访问速度较慢，阿里员工可以使用 tnpm，其他同学建议使用 cnpm 或者指定镜像 registry。
+> 📢 npm access speed is slow, Alibaba employees can use tnpm, other students recommend using cnpm or specifying a mirror registry.
 >
-> 📢 node 版本限制在 14
->
-> 📢 windows 环境尽量使用 [WSL](https://docs.microsoft.com/zh-cn/windows/wsl/install)
+> 📢 Windows environment must use [WSL](https://docs.microsoft.com/en-us/windows/wsl/install), other terminals are not guaranteed to work normally
 
-lowcode-engine 启动后，提供了几个 umd 文件，可以结合 [lowcode-demo](https://github.com/alibaba/lowcode-demo) 项目做调试，文件代理规则参考这里。
+After lowcode-engine is started, several umd files are provided, which can be debugged in combination with the [lowcode-demo](https://github.com/alibaba/lowcode-demo) project. Refer to the file proxy rules [here](https://lowcode-engine.cn/site/docs/participate/prepare).
 
-## 🤝 参与共建
+## 🤝 Participation
 
-请先阅读：
-1. [如何配置引擎调试环境？](https://www.yuque.com/lce/doc/glz0fx)
-2. [关于引擎的研发协作流程](https://www.yuque.com/lce/doc/contributing)
-3. [引擎的工程化配置](https://www.yuque.com/lce/doc/gxwqg6)
+Please read first:
+1. [How to configure the engine debugging environment? ](https://lowcode-engine.cn/site/docs/participate/prepare)
+2. [About the R&D collaboration process of the engine](https://lowcode-engine.cn/site/docs/participate/flow)
+3. [Engineering Configuration of Engine](https://lowcode-engine.cn/site/docs/participate/config)
 
-> 强烈推荐阅读 [《提问的智慧》](https://github.com/ryanhanwu/How-To-Ask-Questions-The-Smart-Way)、[《如何向开源社区提问题》](https://github.com/seajs/seajs/issues/545) 和 [《如何有效地报告 Bug》](http://www.chiark.greenend.org.uk/%7Esgtatham/bugs-cn.html)、[《如何向开源项目提交无法解答的问题》](https://zhuanlan.zhihu.com/p/25795393)，更好的问题更容易获得帮助。（此段参考 [antd](https://github.com/ant-design/ant-design)）
+> Strongly recommend reading ["The Wisdom of Asking Questions"](https://github.com/ryanhanwu/How-To-Ask-Questions-The-Smart-Way), ["How to Ask Questions to the Open Source Community"](https: //github.com/seajs/seajs/issues/545) and [How to Report Bugs Effectively](http://www.chiark.greenend.org.uk/%7Esgtatham/bugs-cn.html), [ "How to Submit Unanswerable Questions to Open Source Projects"](https://zhuanlan.zhihu.com/p/25795393), better questions are easier to get help. (This paragraph refers to [antd](https://github.com/ant-design/ant-design))
+
+About Pull Request:
+- set the target branch to **develop** other than **main**
+
+## ❤️ Contributors
+
+Special thanks to everyone who contributed to this project.
+
+<p>
+<a href="https://github.com/alibaba/lowcode-engine/graphs/contributors"><img src="https://contrib.rocks/image?repo=alibaba/lowcode-engine" /></a>
+</p>

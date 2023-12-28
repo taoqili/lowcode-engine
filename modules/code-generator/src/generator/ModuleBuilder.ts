@@ -1,10 +1,11 @@
-import { ProjectSchema, ResultFile, ResultDir } from '@alilc/lowcode-types';
+import { IPublicTypeProjectSchema, ResultFile, ResultDir } from '@alilc/lowcode-types';
 
 import {
   BuilderComponentPlugin,
   CodeGeneratorError,
   ICodeChunk,
   ICompiledModule,
+  IContextData,
   IModuleBuilder,
   IParseResult,
   ISchemaParser,
@@ -23,6 +24,7 @@ export function createModuleBuilder(
     plugins: BuilderComponentPlugin[];
     postProcessors: PostProcessor[];
     mainFileName?: string;
+    contextData?: IContextData;
   } = {
     plugins: [],
     postProcessors: [],
@@ -41,7 +43,13 @@ export function createModuleBuilder(
 
     let files: ResultFile[] = [];
 
-    const { chunks } = await chunkGenerator.run(input);
+    const { chunks } = await chunkGenerator.run(input, {
+      ir: input,
+      chunks: [],
+      depNames: [],
+      contextData: options.contextData || {},
+    });
+
     chunks.forEach((fileChunkList) => {
       const content = linker.link(fileChunkList);
       const file = createResultFile(
@@ -54,10 +62,9 @@ export function createModuleBuilder(
 
     if (options.postProcessors.length > 0) {
       files = files.map((file) => {
-        let { content } = file;
-        const type = file.ext;
+        let { content, ext: type, name } = file;
         options.postProcessors.forEach((processer) => {
-          content = processer(content, type);
+          content = processer(content, type, name);
         });
 
         return createResultFile(file.name, type, content);
@@ -69,7 +76,7 @@ export function createModuleBuilder(
     };
   };
 
-  const generateModuleCode = async (schema: ProjectSchema | string): Promise<ResultDir> => {
+  const generateModuleCode = async (schema: IPublicTypeProjectSchema | string): Promise<ResultDir> => {
     // Init
     const schemaParser: ISchemaParser = new SchemaParser();
     const parseResult: IParseResult = schemaParser.parse(schema);

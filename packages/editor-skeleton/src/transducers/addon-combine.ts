@@ -1,8 +1,14 @@
-import { TransformedComponentMetadata, FieldConfig, SettingTarget } from '@alilc/lowcode-types';
+import {
+  IPublicTypeTransformedComponentMetadata,
+  IPublicTypeFieldConfig,
+  IPublicModelSettingField,
+} from '@alilc/lowcode-types';
 import { IconSlot } from '../icons/slot';
 import { getConvertedExtraKey } from '@alilc/lowcode-designer';
 
-export default function (metadata: TransformedComponentMetadata): TransformedComponentMetadata {
+export default function (
+  metadata: IPublicTypeTransformedComponentMetadata,
+): IPublicTypeTransformedComponentMetadata {
   const { componentName, configure = {} } = metadata;
 
   // 如果已经处理过，不再重新执行一遍
@@ -87,7 +93,7 @@ export default function (metadata: TransformedComponentMetadata): TransformedCom
     });
   }
   //  通用设置
-  let propsGroup = props || [];
+  let propsGroup = props ? [...props] : [];
   const basicInfo: any = {};
   if (componentName === 'Slot') {
     if (!configure.component) {
@@ -111,43 +117,41 @@ export default function (metadata: TransformedComponentMetadata): TransformedCom
       },
     ];
   }
-  /*
-  propsGroup.push({
-    name: '#generals',
-    title: { type: 'i18n', 'zh-CN': '通用', 'en-US': 'General' },
-    items: [
-      {
-        name: 'id',
-        title: 'ID',
-        setter: 'StringSetter',
-      },
-      {
-        name: 'key',
-        title: 'Key',
-        // todo: use Mixin
-        setter: 'StringSetter',
-      },
-      {
-        name: 'ref',
-        title: 'Ref',
-        setter: 'StringSetter',
-      },
-      {
-        name: '!more',
-        title: '更多',
-        setter: 'PropertiesSetter',
-      },
-    ],
-  });
-  */
-  const stylesGroup: FieldConfig[] = [];
-  const advanceGroup: FieldConfig[] = [];
+  // propsGroup.push({
+  //   name: '#generals',
+  //   title: { type: 'i18n', 'zh-CN': '通用', 'en-US': 'General' },
+  //   items: [
+  //     {
+  //       name: 'id',
+  //       title: 'ID',
+  //       setter: 'StringSetter',
+  //     },
+  //     {
+  //       name: 'key',
+  //       title: 'Key',
+  //       // todo: use Mixin
+  //       setter: 'StringSetter',
+  //     },
+  //     {
+  //       name: 'ref',
+  //       title: 'Ref',
+  //       setter: 'StringSetter',
+  //     },
+  //     {
+  //       name: '!more',
+  //       title: '更多',
+  //       setter: 'PropertiesSetter',
+  //     },
+  //   ],
+  // });
+  const stylesGroup: IPublicTypeFieldConfig[] = [];
+  const advancedGroup: IPublicTypeFieldConfig[] = [];
   if (propsGroup) {
     let l = propsGroup.length;
     while (l-- > 0) {
       const item = propsGroup[l];
       // if (item.type === 'group' && (item.title === '高级' || item.title?.label === '高级')) {
-      //   advanceGroup = item.items || [];
+      //   advancedGroup = item.items || [];
       //   propsGroup.splice(l, 1);
       // }
       if (
@@ -164,7 +168,7 @@ export default function (metadata: TransformedComponentMetadata): TransformedCom
       }
     }
   }
-  const combined: FieldConfig[] = [
+  const combined: IPublicTypeFieldConfig[] = [
     {
       title: { type: 'i18n', 'zh-CN': '属性', 'en-US': 'Props' },
       name: '#props',
@@ -210,24 +214,30 @@ export default function (metadata: TransformedComponentMetadata): TransformedCom
               definition: eventsDefinition,
             },
           },
-          getValue(field: SettingTarget, val?: any[]) {
+          getValue(field: IPublicModelSettingField, val?: any[]) {
             return val;
           },
 
-          setValue(field: SettingTarget, eventData) {
+          setValue(field: IPublicModelSettingField, eventData) {
             const { eventDataList, eventList } = eventData;
-            Array.isArray(eventList) && eventList.map((item) => {
-              field.parent.clearPropValue(item.name);
-              return item;
-            });
-            Array.isArray(eventDataList) && eventDataList.map((item) => {
-              field.parent.setPropValue(item.name, {
-                type: 'JSFunction',
-                // 需要传下入参
-                value: `function(){this.${item.relatedEventName}.apply(this,Array.prototype.slice.call(arguments).concat([${item.paramStr ? item.paramStr : ''}])) }`,
+            Array.isArray(eventList) &&
+              eventList.map((item) => {
+                field.parent.clearPropValue(item.name);
+                return item;
               });
-              return item;
-            });
+            Array.isArray(eventDataList) &&
+              eventDataList.map((item) => {
+                field.parent.setPropValue(item.name, {
+                  type: 'JSFunction',
+                  // 需要传下入参
+                  value: `function(){return this.${
+                    item.relatedEventName
+                  }.apply(this,Array.prototype.slice.call(arguments).concat([${
+                    item.paramStr ? item.paramStr : ''
+                  }])) }`,
+                });
+                return item;
+              });
           },
         },
       ],
@@ -236,7 +246,7 @@ export default function (metadata: TransformedComponentMetadata): TransformedCom
 
   if (!isRoot) {
     if (supports.condition !== false) {
-      advanceGroup.push({
+      advancedGroup.push({
         name: getConvertedExtraKey('condition'),
         title: { type: 'i18n', 'zh-CN': '是否渲染', 'en-US': 'Condition' },
         defaultValue: true,
@@ -254,19 +264,19 @@ export default function (metadata: TransformedComponentMetadata): TransformedCom
       });
     }
     if (supports.loop !== false) {
-      advanceGroup.push({
+      advancedGroup.push({
         name: '#loop',
         title: { type: 'i18n', 'zh-CN': '循环', 'en-US': 'Loop' },
         items: [
           {
             name: getConvertedExtraKey('loop'),
             title: { type: 'i18n', 'zh-CN': '循环数据', 'en-US': 'Loop Data' },
-            defaultValue: [],
             setter: [
               {
                 componentName: 'JsonSetter',
                 props: {
                   label: { type: 'i18n', 'zh-CN': '编辑数据', 'en-US': 'Edit Data' },
+                  defaultValue: '[]',
                 },
               },
               {
@@ -296,7 +306,7 @@ export default function (metadata: TransformedComponentMetadata): TransformedCom
           },
           {
             name: 'key',
-            title: '循环 Key',
+            title: { type: 'i18n', 'zh-CN': '循环 Key', 'en-US': 'Loop Key' },
             setter: [
               {
                 componentName: 'StringSetter',
@@ -314,12 +324,20 @@ export default function (metadata: TransformedComponentMetadata): TransformedCom
     }
 
     if (supports.condition !== false || supports.loop !== false) {
-      advanceGroup.push({
+      advancedGroup.push({
         name: 'key',
         title: {
-          label: '渲染唯一标识（key）',
-          tip: '搭配「条件渲染」或「循环渲染」时使用，和 react 组件中的 key 原理相同，点击查看帮助',
-          docUrl: 'https://yuque.antfin-inc.com/legao/help3.0/ca5in7',
+          label: {
+            type: 'i18n',
+            'zh-CN': '渲染唯一标识 (key)',
+            'en-US': 'Render unique identifier (key)',
+          },
+          tip: {
+            type: 'i18n',
+            'zh-CN': '搭配「条件渲染」或「循环渲染」时使用，和 react 组件中的 key 原理相同，点击查看帮助',
+            'en-US': 'Used with 「Conditional Rendering」or「Cycle Rendering」, the same principle as the key in the react component, click to view the help',
+          },
+          docUrl: 'https://www.yuque.com/lce/doc/qm75w3',
         },
         setter: [
           {
@@ -335,11 +353,11 @@ export default function (metadata: TransformedComponentMetadata): TransformedCom
       });
     }
   }
-  if (advanceGroup.length > 0) {
+  if (advancedGroup.length > 0) {
     combined.push({
       name: '#advanced',
       title: { type: 'i18n', 'zh-CN': '高级', 'en-US': 'Advanced' },
-      items: advanceGroup,
+      items: advancedGroup,
     });
   }
 

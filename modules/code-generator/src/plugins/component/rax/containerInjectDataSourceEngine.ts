@@ -1,8 +1,8 @@
 /* eslint-disable @typescript-eslint/indent */
 
 import {
-  CompositeValue,
-  JSExpression,
+  IPublicTypeCompositeValue,
+  IPublicTypeJSExpression,
   InterpretDataSourceConfig,
   isJSExpression,
   isJSFunction,
@@ -29,6 +29,11 @@ import { RAX_CHUNK_NAME } from './const';
 
 export interface PluginConfig extends RaxFrameworkOptions {
   fileType?: string;
+
+  /**
+   * 数据源的 handlers 的映射配置
+   * @deprecated 请使用 datasourceConfig.handlersPackages 来配置
+   */
   dataSourceHandlersPackageMap?: Record<string, string>;
 }
 
@@ -51,7 +56,7 @@ const pluginFactory: BuilderComponentPluginFactory<PluginConfig> = (config?) => 
       (dataSourceConfig && dataSourceConfig.list) || [];
     const dataSourceEngineOptions = { runtimeConfig: true };
     if (dataSourceItems.length > 0) {
-      const requestHandlersMap: Record<string, JSExpression> = {};
+      const requestHandlersMap: Record<string, IPublicTypeJSExpression> = {};
 
       dataSourceItems.forEach((ds) => {
         const dsType = ds.type || 'fetch';
@@ -173,7 +178,7 @@ _defineDataSourceConfig() {
 
 export default pluginFactory;
 
-function wrapAsFunction(value: CompositeValue, scope: IScope): CompositeValue {
+function wrapAsFunction(value: IPublicTypeCompositeValue, scope: IScope): IPublicTypeCompositeValue {
   if (isJSExpression(value) || isJSFunction(value)) {
     return {
       type: 'JSExpression',

@@ -1,12 +1,15 @@
 import { isValidElement, ReactNode, createElement, cloneElement } from 'react';
 import { Icon } from '@alifd/next';
-import { IconType } from '@alilc/lowcode-types';
+import { IPublicTypeIconType } from '@alilc/lowcode-types';
 import { isReactComponent } from './is-react';
 import { isESModule } from './is-es-module';
 
 const URL_RE = /^(https?:)\/\//i;
 
-export function createIcon(icon?: IconType | null, props?: Record<string, unknown>): ReactNode {
+export function createIcon(
+    icon?: IPublicTypeIconType | null,
+    props?: Record<string, unknown>,
+  ): ReactNode {
   if (!icon) {
     return null;
   }
@@ -15,7 +18,11 @@ export function createIcon(icon?: IconType | null, props?: Record<string, unknow
   }
   if (typeof icon === 'string') {
     if (URL_RE.test(icon)) {
-      return <img src={icon} {...props} />;
+      return createElement('img', {
+        src: icon,
+        class: props?.className,
+        ...props,
+      });
     }
     return <Icon type={icon} {...props} />;
   }
@@ -23,7 +30,10 @@ export function createIcon(icon?: IconType | null, props?: Record<string, unknow
     return cloneElement(icon, { ...props });
   }
   if (isReactComponent(icon)) {
-    return createElement(icon, { ...props });
+    return createElement(icon, {
+      class: props?.className,
+      ...props,
+    });
   }
 
   return <Icon {...icon} {...props} />;

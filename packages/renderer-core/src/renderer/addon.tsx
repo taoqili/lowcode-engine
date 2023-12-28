@@ -1,12 +1,13 @@
 import PropTypes from 'prop-types';
 import baseRendererFactory from './base';
-import { isEmpty, goldlog } from '../utils';
+import { isEmpty } from '../utils';
 import { IRendererAppHelper, IBaseRendererProps, IBaseRenderComponent } from '../types';
+import logger from '../utils/logger';
 
 export default function addonRendererFactory(): IBaseRenderComponent {
   const BaseRenderer = baseRendererFactory();
   return class AddonRenderer extends BaseRenderer {
-    static dislayName = 'addon-renderer';
+    static displayName = 'AddonRenderer';
 
     __namespace = 'addon';
 
@@ -32,7 +33,7 @@ export default function addonRendererFactory(): IBaseRenderComponent {
       const schema = props.__schema || {};
       this.state = this.__parseData(schema.state || {});
       if (isEmpty(props.config) || !props.config?.addonKey) {
-        console.warn('lce addon has wrong config');
+        logger.warn('lce addon has wrong config');
         this.setState({
           __hasError: true,
         });
@@ -45,7 +46,7 @@ export default function addonRendererFactory(): IBaseRenderComponent {
       this.__initDataSource(props);
       this.open = this.open || (() => { });
       this.close = this.close || (() => { });
-      this.__setLifeCycleMethods('constructor', [...arguments]);
+      this.__executeLifeCycleMethod('constructor', [...arguments]);
     }
 
     async componentWillUnmount() {
@@ -56,21 +57,6 @@ export default function addonRendererFactory(): IBaseRenderComponent {
         delete this.appHelper.addons[config.addonKey];
       }
     }
-
-    goldlog = (goKey: string, params: any) => {
-      const { addonKey, addonConfig = {} } = this.props.config || {};
-      goldlog(
-        goKey,
-        {
-          addonKey,
-          package: addonConfig.package,
-          version: addonConfig.version,
-          ...this.appHelper.logParams,
-          ...params,
-        },
-        'addon',
-      );
-    };
 
     get utils() {
       const { utils = {} } = this.context.config || {};
@@ -84,7 +70,7 @@ export default function addonRendererFactory(): IBaseRenderComponent {
         return '插件 schema 结构异常！';
       }
 
-      this.__debug(`${AddonRenderer.dislayName} render - ${__schema.fileName}`);
+      this.__debug(`${AddonRenderer.displayName} render - ${__schema.fileName}`);
       this.__generateCtx({
         component: this,
       });

@@ -17,6 +17,9 @@ jest.mock('../../src/designer/designer', () => {
             getMetadata() {
               return { configure: { advanced: null } };
             },
+            get advanced() {
+              return {};
+            },
           };
         },
         transformProps(props) { return props; },
@@ -67,6 +70,7 @@ describe('选择区测试', () => {
     expect(selection.selected).toEqual(['node_k1ow3cbj', 'form']);
     selectionChangeHandler.mockClear();
 
+    selection.remove('node_k1ow3cbj_fake');
     selection.remove('node_k1ow3cbj');
     expect(selectionChangeHandler).toHaveBeenCalledTimes(1);
     expect(selectionChangeHandler.mock.calls[0][0]).toEqual(['form']);
@@ -118,7 +122,7 @@ describe('选择区测试', () => {
     selectionChangeHandler.mockClear();
   });
 
-  it('dispose 方法', () => {
+  it('selectAll 包含不存在的 id', () => {
     const project = new Project(designer, {
       componentsTree: [
         formSchema,
@@ -131,17 +135,10 @@ describe('选择区测试', () => {
 
     selection.selectAll(['form', 'node_k1ow3cbj', 'form2']);
 
-    const selectionChangeHandler = jest.fn();
-    selection.onSelectionChange(selectionChangeHandler);
-    selection.dispose();
-
-    expect(selectionChangeHandler).toHaveBeenCalledTimes(1);
-    expect(selectionChangeHandler.mock.calls[0][0]).toEqual(['form', 'node_k1ow3cbj']);
     expect(selection.selected).toEqual(['form', 'node_k1ow3cbj']);
-    selectionChangeHandler.mockClear();
   });
 
-  it('dispose 方法', () => {
+  it('dispose 方法 - 选中的节点没有被删除的', () => {
     const project = new Project(designer, {
       componentsTree: [
         formSchema,
@@ -152,16 +149,13 @@ describe('选择区测试', () => {
     const { currentDocument } = project;
     const { nodesMap, selection } = currentDocument!;
 
-    selection.selectAll(['form', 'node_k1ow3cbj', 'form2']);
+    selection.selectAll(['form', 'node_k1ow3cbj']);
 
     const selectionChangeHandler = jest.fn();
     selection.onSelectionChange(selectionChangeHandler);
     selection.dispose();
 
-    expect(selectionChangeHandler).toHaveBeenCalledTimes(1);
-    expect(selectionChangeHandler.mock.calls[0][0]).toEqual(['form', 'node_k1ow3cbj']);
-    expect(selection.selected).toEqual(['form', 'node_k1ow3cbj']);
-    selectionChangeHandler.mockClear();
+    expect(selectionChangeHandler).not.toHaveBeenCalled();
   });
 
   it('containsNode 方法', () => {
@@ -241,5 +235,51 @@ describe('选择区测试', () => {
     expect(selectionChangeHandler).toHaveBeenCalledTimes(0);
     expect(selection.selected).toEqual(['page']);
     selectionChangeHandler.mockClear();
+  });
+
+  it('getNodes', () => {
+    const project = new Project(designer, {
+      componentsTree: [
+        formSchema,
+      ],
+    });
+    project.open();
+    const { currentDocument } = project;
+    const { selection } = currentDocument!;
+
+    selection.selectAll(['form', 'node_k1ow3cbj', 'form2']);
+
+    // form2 is not a valid node
+    expect(selection.getNodes()).toHaveLength(2);
+  });
+
+  it('getTopNodes - BeforeOrAfter', () => {
+    const project = new Project(designer, {
+      componentsTree: [
+        formSchema,
+      ],
+    });
+    project.open();
+    const { currentDocument } = project;
+    const { selection } = currentDocument!;
+
+    selection.selectAll(['node_k1ow3cbj', 'node_k1ow3cbo']);
+
+    expect(selection.getTopNodes()).toHaveLength(2);
+  });
+  it('getTopNodes', () => {
+    const project = new Project(designer, {
+      componentsTree: [
+        formSchema,
+      ],
+    });
+    project.open();
+    const { currentDocument } = project;
+    const { selection } = currentDocument!;
+
+    selection.selectAll(['node_k1ow3cbj', 'node_k1ow3cbo', 'form', 'node_k1ow3cbl', 'form2']);
+
+    // form2 is not a valid node, and node_k1ow3cbj is a child node of form
+    expect(selection.getTopNodes()).toHaveLength(1);
   });
 });

@@ -1,12 +1,15 @@
-import { IProjectBuilder } from '../types';
+import { IProjectBuilder, IProjectBuilderOptions } from '../types';
 
 import { createProjectBuilder } from '../generator/ProjectBuilder';
 
 import esmodule from '../plugins/common/esmodule';
+import styleImport from '../plugins/common/styleImport';
 import containerClass from '../plugins/component/react/containerClass';
 import containerInitState from '../plugins/component/react/containerInitState';
+import containerInjectContext from '../plugins/component/react/containerInjectContext';
 import containerInjectUtils from '../plugins/component/react/containerInjectUtils';
 import containerInjectDataSourceEngine from '../plugins/component/react/containerInjectDataSourceEngine';
+import containerInjectConstants from '../plugins/component/react/containerInjectConstants';
 import containerInjectI18n from '../plugins/component/react/containerInjectI18n';
 import containerLifeCycle from '../plugins/component/react/containerLifeCycle';
 import containerMethod from '../plugins/component/react/containerMethod';
@@ -21,8 +24,14 @@ import icejs from '../plugins/project/framework/icejs';
 
 import { prettier } from '../postprocessor';
 
-export default function createIceJsProjectBuilder(): IProjectBuilder {
+export type IceJsProjectBuilderOptions = IProjectBuilderOptions;
+
+export default function createIceJsProjectBuilder(
+  options?: IceJsProjectBuilderOptions,
+): IProjectBuilder {
   return createProjectBuilder({
+    inStrictMode: options?.inStrictMode,
+    extraContextData: { ...options },
     template: icejs.template,
     plugins: {
       components: [
@@ -30,10 +39,13 @@ export default function createIceJsProjectBuilder(): IProjectBuilder {
         esmodule({
           fileType: 'jsx',
         }),
+        styleImport(),
         containerClass(),
+        containerInjectContext(),
         containerInjectUtils(),
         containerInjectDataSourceEngine(),
         containerInjectI18n(),
+        containerInjectConstants(),
         containerInitState(),
         containerLifeCycle(),
         containerMethod(),
@@ -52,10 +64,13 @@ export default function createIceJsProjectBuilder(): IProjectBuilder {
         esmodule({
           fileType: 'jsx',
         }),
+        styleImport(),
         containerClass(),
+        containerInjectContext(),
         containerInjectUtils(),
         containerInjectDataSourceEngine(),
         containerInjectI18n(),
+        containerInjectConstants(),
         containerInitState(),
         containerLifeCycle(),
         containerMethod(),
@@ -80,15 +95,18 @@ export default function createIceJsProjectBuilder(): IProjectBuilder {
       packageJSON: [icejs.plugins.packageJSON()],
     },
     postProcessors: [prettier()],
+    customizeBuilderOptions: options?.customizeBuilderOptions,
   });
 }
 
 export const plugins = {
   containerClass,
-  containerInitState,
+  containerInjectContext,
   containerInjectUtils,
-  containerInjectI18n,
   containerInjectDataSourceEngine,
+  containerInjectI18n,
+  containerInjectConstants,
+  containerInitState,
   containerLifeCycle,
   containerMethod,
   jsx,

@@ -1,12 +1,24 @@
 import { isElement } from '@alilc/lowcode-utils';
+import { IPublicModelScrollTarget, IPublicTypeScrollable, IPublicModelScroller } from '@alilc/lowcode-types';
 
-export class ScrollTarget {
+export interface IScrollTarget extends IPublicModelScrollTarget {
+}
+
+export class ScrollTarget implements IScrollTarget {
   get left() {
     return 'scrollX' in this.target ? this.target.scrollX : this.target.scrollLeft;
   }
 
   get top() {
     return 'scrollY' in this.target ? this.target.scrollY : this.target.scrollTop;
+  }
+
+  private doc?: HTMLElement;
+
+  constructor(private target: Window | Element) {
+    if (isWindow(target)) {
+      this.doc = target.document.documentElement;
+    }
   }
 
   scrollTo(options: { left?: number; top?: number }) {
@@ -24,14 +36,6 @@ export class ScrollTarget {
   get scrollWidth(): number {
     return ((this.doc || this.target) as any).scrollWidth;
   }
-
-  private doc?: HTMLElement;
-
-  constructor(private target: Window | Element) {
-    if (isWindow(target)) {
-      this.doc = target.document.documentElement;
-    }
-  }
 }
 
 function isWindow(obj: any): obj is Window {
@@ -42,20 +46,20 @@ function easing(n: number) {
   return Math.sin((n * Math.PI) / 2);
 }
 
-const SCROLL_ACCURCY = 30;
+const SCROLL_ACCURACY = 30;
 
-export interface IScrollable {
-  scrollTarget?: ScrollTarget | Element;
-  bounds?: DOMRect | null;
-  scale?: number;
+export interface IScroller extends IPublicModelScroller {
+
 }
-
-export class Scroller {
+export class Scroller implements IScroller {
   private pid: number | undefined;
+  scrollable: IPublicTypeScrollable;
 
-  constructor(private scrollable: IScrollable) {}
+  constructor(scrollable: IPublicTypeScrollable) {
+    this.scrollable = scrollable;
+  }
 
-  get scrollTarget(): ScrollTarget | null {
+  get scrollTarget(): IScrollTarget | null {
     let target = this.scrollable.scrollTarget;
     if (!target) {
       return null;
@@ -138,15 +142,15 @@ export class Scroller {
     let sy = scrollTarget.top;
     let ax = 0;
     let ay = 0;
-    if (y < bounds.top + SCROLL_ACCURCY) {
-      ay = -Math.min(Math.max(bounds.top + SCROLL_ACCURCY - y, 10), 50) / scale;
-    } else if (y > bounds.bottom - SCROLL_ACCURCY) {
-      ay = Math.min(Math.max(y + SCROLL_ACCURCY - bounds.bottom, 10), 50) / scale;
+    if (y < bounds.top + SCROLL_ACCURACY) {
+      ay = -Math.min(Math.max(bounds.top + SCROLL_ACCURACY - y, 10), 50) / scale;
+    } else if (y > bounds.bottom - SCROLL_ACCURACY) {
+      ay = Math.min(Math.max(y + SCROLL_ACCURACY - bounds.bottom, 10), 50) / scale;
     }
-    if (x < bounds.left + SCROLL_ACCURCY) {
-      ax = -Math.min(Math.max(bounds.top + SCROLL_ACCURCY - y, 10), 50) / scale;
-    } else if (x > bounds.right - SCROLL_ACCURCY) {
-      ax = Math.min(Math.max(x + SCROLL_ACCURCY - bounds.right, 10), 50) / scale;
+    if (x < bounds.left + SCROLL_ACCURACY) {
+      ax = -Math.min(Math.max(bounds.top + SCROLL_ACCURACY - y, 10), 50) / scale;
+    } else if (x > bounds.right - SCROLL_ACCURACY) {
+      ax = Math.min(Math.max(x + SCROLL_ACCURACY - bounds.right, 10), 50) / scale;
     }
 
     if (!ax && !ay) {

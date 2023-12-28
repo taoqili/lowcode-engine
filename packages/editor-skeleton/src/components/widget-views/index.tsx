@@ -1,12 +1,12 @@
 import { Component, ReactElement } from 'react';
 import { Icon } from '@alifd/next';
 import classNames from 'classnames';
-import { Title, observer, Tip, globalContext, Editor } from '@alilc/lowcode-editor-core';
+import { Title, observer, Tip } from '@alilc/lowcode-editor-core';
 import { DockProps } from '../../types';
-import PanelDock from '../../widget/panel-dock';
+import { PanelDock } from '../../widget/panel-dock';
 import { composeTitle } from '../../widget/utils';
-import WidgetContainer from '../../widget/widget-container';
-import Panel from '../../widget/panel';
+import { WidgetContainer } from '../../widget/widget-container';
+import { Panel } from '../../widget/panel';
 import { IWidget } from '../../widget/widget';
 import { SkeletonEvents } from '../../skeleton';
 import DraggableLine from '../draggable-line';
@@ -47,6 +47,8 @@ function HelpTip({ tip }: any) {
 
 @observer
 export class PanelDockView extends Component<DockProps & { dock: PanelDock }> {
+  private lastActived = false;
+
   componentDidMount() {
     this.checkActived();
   }
@@ -54,8 +56,6 @@ export class PanelDockView extends Component<DockProps & { dock: PanelDock }> {
   componentDidUpdate() {
     this.checkActived();
   }
-
-  private lastActived = false;
 
   checkActived() {
     const { dock } = this.props;
@@ -116,15 +116,15 @@ export class DraggableLineView extends Component<{ panel: Panel }> {
     }
 
     // 抛出事件，对于有些需要 panel 插件随着 度变化进行再次渲染的，由panel插件内部监听事件实现
-    const editor = globalContext.get(Editor);
-    editor?.emit('dockpane.drag', width);
+    const editor = this.props.panel.skeleton.editor;
+    editor?.eventBus.emit('dockpane.drag', width);
   }
 
   onDragChange(type: 'start' | 'end') {
-    const editor = globalContext.get(Editor);
-    editor?.emit('dockpane.dragchange', type);
+    const editor = this.props.panel.skeleton.editor;
+    editor?.eventBus.emit('dockpane.dragchange', type);
     // builtinSimulator 屏蔽掉 鼠标事件
-    editor?.emit('designer.builtinSimulator.disabledEvents', type === 'start');
+    editor?.eventBus.emit('designer.builtinSimulator.disabledEvents', type === 'start');
   }
 
   render() {
@@ -132,7 +132,7 @@ export class DraggableLineView extends Component<{ panel: Panel }> {
     // 默认 关闭，通过配置开启
     const enableDrag = this.props.panel.config.props?.enableDrag;
     const isRightArea = this.props.panel.config?.area === 'rightArea';
-    if (isRightArea || !enableDrag || this.props.panel?.parent.name === 'leftFixedArea') {
+    if (isRightArea || !enableDrag || this.props.panel?.parent?.name === 'leftFixedArea') {
       return null;
     }
     return (
@@ -157,6 +157,8 @@ export class DraggableLineView extends Component<{ panel: Panel }> {
 
 @observer
 export class TitledPanelView extends Component<{ panel: Panel; area?: string }> {
+  private lastVisible = false;
+
   componentDidMount() {
     this.checkVisible();
   }
@@ -164,8 +166,6 @@ export class TitledPanelView extends Component<{ panel: Panel; area?: string }> 
   componentDidUpdate() {
     this.checkVisible();
   }
-
-  private lastVisible = false;
 
   checkVisible() {
     const { panel } = this.props;
@@ -185,9 +185,9 @@ export class TitledPanelView extends Component<{ panel: Panel; area?: string }> 
     if (!panel.inited) {
       return null;
     }
-    const editor = globalContext.get(Editor);
+    const editor = panel.skeleton.editor;
     const panelName = area ? `${area}-${panel.name}` : panel.name;
-    editor?.emit('skeleton.panel.toggle', {
+    editor?.eventBus.emit('skeleton.panel.toggle', {
       name: panelName || '',
       status: panel.visible ? 'show' : 'hide',
     });
@@ -215,6 +215,8 @@ export class PanelView extends Component<{
   hideOperationRow?: boolean;
   hideDragLine?: boolean;
 }> {
+  private lastVisible = false;
+
   componentDidMount() {
     this.checkVisible();
   }
@@ -223,8 +225,6 @@ export class PanelView extends Component<{
     this.checkVisible();
   }
 
-  private lastVisible = false;
-
   checkVisible() {
     const { panel } = this.props;
     const currentVisible = panel.inited && panel.visible;
@@ -232,12 +232,8 @@ export class PanelView extends Component<{
       this.lastVisible = currentVisible;
       if (this.lastVisible) {
         panel.skeleton.postEvent(SkeletonEvents.PANEL_SHOW, panel.name, panel);
-        // FIXME! remove this line
-        panel.skeleton.postEvent('leftPanel.show' as any, panel.name, panel);
       } else {
         panel.skeleton.postEvent(SkeletonEvents.PANEL_HIDE, panel.name, panel);
-        // FIXME! remove this line
-        panel.skeleton.postEvent('leftPanel.hide' as any, panel.name, panel);
       }
     }
   }
@@ -247,9 +243,9 @@ export class PanelView extends Component<{
     if (!panel.inited) {
       return null;
     }
-    const editor = globalContext.get(Editor);
+    const editor = panel.skeleton.editor;
     const panelName = area ? `${area}-${panel.name}` : panel.name;
-    editor?.emit('skeleton.panel.toggle', {
+    editor?.eventBus.emit('skeleton.panel.toggle', {
       name: panelName || '',
       status: panel.visible ? 'show' : 'hide',
     });
@@ -270,15 +266,28 @@ export class PanelView extends Component<{
 }
 
 @observer
-export class TabsPanelView extends Component<{ container: WidgetContainer<Panel> }> {
+export class TabsPanelView extends Component<{
+  container: WidgetContainer<Panel>;
+  // shouldHideSingleTab: 一个布尔值，用于控制当 Tabs 组件只有一个标签时是否隐藏该标签。
+  shouldHideSingleTab?: boolean;
+}> {
   render() {
     const { container } = this.props;
     const titles: ReactElement[] = [];
     const contents: ReactElement[] = [];
-    container.items.forEach((item: any) => {
-      titles.push(<PanelTitle key={item.id} panel={item} className="lc-tab-title" />);
-      contents.push(<PanelView key={item.id} panel={item} hideOperationRow hideDragLine />);
-    });
+    // 如果只有一个标签且 shouldHideSingleTab 为 true，则不显示 Tabs
+    if (this.props.shouldHideSingleTab && container.items.length === 1) {
+      contents.push(<PanelView key={container.items[0].id} panel={container.items[0]} hideOperationRow hideDragLine />);
+    } else {
+      container.items.forEach((item: any) => {
+        titles.push(<PanelTitle key={item.id} panel={item} className="lc-tab-title" />);
+        contents.push(<PanelView key={item.id} panel={item} hideOperationRow hideDragLine />);
+      });
+    }
+
+    if (!titles.length) {
+      return contents;
+    }
 
     return (
       <div className="lc-tabs">
@@ -327,6 +336,9 @@ class PanelTitle extends Component<{ panel: Panel; className?: string }> {
 
 @observer
 export class WidgetView extends Component<{ widget: IWidget }> {
+  private lastVisible = false;
+  private lastDisabled: boolean | undefined = false;
+
   componentDidMount() {
     this.checkVisible();
     this.checkDisabled();
@@ -336,9 +348,6 @@ export class WidgetView extends Component<{ widget: IWidget }> {
     this.checkVisible();
     this.checkDisabled();
   }
-
-  private lastVisible = false;
-  private lastDisabled = false;
 
   checkVisible() {
     const { widget } = this.props;

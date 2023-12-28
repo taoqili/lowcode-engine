@@ -1,29 +1,38 @@
-const esModules = [
-  '@recore/obx-react',
-  '@alilc/lowcode-datasource-engine',
-].join('|');
+const fs = require('fs');
+const { join } = require('path');
+const esModules = [].join('|');
+const pkgNames = fs.readdirSync(join('..')).filter(pkgName => !pkgName.startsWith('.'));
 
-module.exports = {
-  transform: {
-    '^.+\\.(ts|tsx)$': 'ts-jest',
-    '^.+\\.(js|ts|tsx|jsx)$': 'babel-jest',
-    '^.+\\.(css|less|scss)$': './test/mock/styleMock.js',
-  },
-  // testMatch: ['**/bugs/*.test.ts'],
+const jestConfig = {
+  // transform: {
+  //   // '^.+\\.[jt]sx?$': 'babel-jest',
+  //   '^.+\\.(ts|tsx)$': 'ts-jest',
+  //   // '^.+\\.(js|jsx)$': 'babel-jest',
+  // },
   // testMatch: ['(/tests?/.*(test))\\.[jt]s$'],
-  // transformIgnorePatterns: [
-  //   `/node_modules/(?!${esModules})/`,
-  // ],
-  testEnvironment: 'jsdom',
-  moduleFileExtensions: ['ts', 'tsx', 'js', 'json'],
-  collectCoverage: false,
-  collectCoverageFrom: [
-    'src/**/*.{ts,tsx}',
+  // testMatch: ['**/*/base.test.tsx'],
+  // testMatch: ['**/utils/common.test.ts'],
+  // testMatch: ['**/*/leaf.test.tsx'],
+  // testMatch: ['**/*/is-use-loop.test.ts'],
+  transformIgnorePatterns: [
+    `/node_modules/(?!${esModules})/`,
   ],
-  moduleNameMapper: {
-    '^.+.(css|styl|less|sass|scss|png|jpg|ttf|woff|woff2)$': 'jest-transform-stub',
-  },
-  setupFilesAfterEnv: [
-    './test/setup.ts',
+  setupFiles: [
+    './tests/fixtures/unhandled-rejection.ts',
+    './tests/setup.ts',
+  ],
+  moduleFileExtensions: ['ts', 'tsx', 'js', 'json'],
+  collectCoverage: true,
+  collectCoverageFrom: [
+    'src/**/*.ts',
+    'src/**/*.tsx',
+    '!src/utils/logger.ts',
+    '!src/types/index.ts',
   ],
 };
+
+// 只对本仓库内的 pkg 做 mapping
+jestConfig.moduleNameMapper = {};
+jestConfig.moduleNameMapper[`^@alilc/lowcode\\-(${pkgNames.join('|')})$`] = '<rootDir>/../$1/src';
+
+module.exports = jestConfig;

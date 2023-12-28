@@ -1,7 +1,7 @@
 {
   "name": "@alilc/lowcode-engine",
-  "version": "1.0.1",
-  "description": "Universal API for AliLowCode engine",
+  "version": "1.2.5",
+  "description": "An enterprise-class low-code technology stack with scale-out design / 一套面向扩展设计的企业级低代码技术体系",
   "main": "lib/engine-core.js",
   "module": "es/engine-core.js",
   "files": [
@@ -12,21 +12,22 @@
   "scripts": {
     "start": "build-scripts start",
     "version:update": "node ./scripts/version.js",
-    "build": "NODE_OPTIONS=--max_old_space_size=8192 build-scripts build --skip-demo",
+    "build": "NODE_OPTIONS=--max_old_space_size=8192 build-scripts build",
     "build:umd": "NODE_OPTIONS=--max_old_space_size=8192 build-scripts build --config build.umd.json",
     "test": "build-scripts test --config build.test.json --jest-passWithNoTests"
   },
   "license": "MIT",
   "dependencies": {
     "@alifd/next": "^1.19.12",
-    "@alilc/lowcode-designer": "1.0.1",
-    "@alilc/lowcode-editor-core": "1.0.1",
-    "@alilc/lowcode-editor-skeleton": "1.0.1",
+    "@alilc/lowcode-designer": "1.2.5",
+    "@alilc/lowcode-editor-core": "1.2.5",
+    "@alilc/lowcode-editor-skeleton": "1.2.5",
     "@alilc/lowcode-engine-ext": "^1.0.0",
-    "@alilc/lowcode-plugin-designer": "1.0.1",
-    "@alilc/lowcode-plugin-outline-pane": "1.0.1",
-    "@alilc/lowcode-shell": "1.0.1",
-    "@alilc/lowcode-utils": "1.0.1",
+    "@alilc/lowcode-plugin-designer": "1.2.5",
+    "@alilc/lowcode-plugin-outline-pane": "1.2.5",
+    "@alilc/lowcode-shell": "1.2.5",
+    "@alilc/lowcode-utils": "1.2.5",
+    "@alilc/lowcode-workspace": "1.2.5",
     "react": "^16.8.1",
     "react-dom": "^16.8.1"
   },
@@ -34,7 +35,6 @@
     "@alib/build-scripts": "^0.1.18",
     "@alifd/theme-lowcode-dark": "^0.2.0",
     "@alifd/theme-lowcode-light": "^0.2.0",
-    "@alilc/lowcode-test-mate": "^1.0.1",
     "@types/domready": "^1.0.0",
     "@types/react": "^16.8.3",
     "@types/react-dom": "^16.8.2",
@@ -53,5 +53,7 @@
     "type": "http",
     "url": "https://github.com/alibaba/lowcode-engine/tree/main/packages/engine"
   },
-  "gitHead": "2669f179e6f899d395ce1942d0fe04f9c5ed48a6"
+  "gitHead": "2669f179e6f899d395ce1942d0fe04f9c5ed48a6",
+  "bugs": "https://github.com/alibaba/lowcode-engine/issues",
+  "homepage": "https://github.com/alibaba/lowcode-engine/#readme"
 }

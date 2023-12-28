@@ -2,15 +2,13 @@ import '../../fixtures/window';
 import { DocumentModel, isDocumentModel, isPageSchema } from '../../../src/document/document-model';
 import { Editor } from '@alilc/lowcode-editor-core';
 import { Project } from '../../../src/project/project';
-import { Node } from '../../../src/document/node/node';
 import { Designer } from '../../../src/designer/designer';
 import formSchema from '../../fixtures/schema/form';
 import divMeta from '../../fixtures/component-metadata/div';
 import formMeta from '../../fixtures/component-metadata/form';
 import otherMeta from '../../fixtures/component-metadata/other';
 import pageMeta from '../../fixtures/component-metadata/page';
-// const { DocumentModel } = require('../../../src/document/document-model');
-// const { Node } = require('../__mocks__/node');
+import { shellModelFactory } from '../../../../engine/src/modules/shell-model-factory';
 
 describe('document-model 测试', () => {
   let editor: Editor;
@@ -19,13 +17,13 @@ describe('document-model 测试', () => {
 
   beforeEach(() => {
     editor = new Editor();
-    designer = new Designer({ editor });
+    designer = new Designer({ editor, shellModelFactory });
     project = designer.project;
   });
 
-  test('empty schema', () => {
+  it('empty schema', () => {
     const doc = new DocumentModel(project);
-    expect(doc.rootNode.id).toBe('root');
+    expect(doc.rootNode?.id).toBe('root');
     expect(doc.currentRoot).toBe(doc.rootNode);
     expect(doc.root).toBe(doc.rootNode);
     expect(doc.modalNode).toBeUndefined();
@@ -44,7 +42,7 @@ describe('document-model 测试', () => {
     });
   });
 
-  test('各种方法测试', () => {
+  it('各种方法测试', () => {
     const doc = new DocumentModel(project, formSchema);
     const mockNode = { id: 1 };
     doc.addWillPurge(mockNode);
@@ -62,7 +60,7 @@ describe('document-model 测试', () => {
     doc.internalRemoveAndPurgeNode({ id: 'mockId' });
 
     // internalSetDropLocation
-    doc.internalSetDropLocation({ a: 1 });
+    doc.dropLocation = { a: 1 };
     expect(doc.dropLocation).toEqual({ a: 1 });
 
     // wrapWith
@@ -115,8 +113,89 @@ describe('document-model 测试', () => {
     expect(doc.history).toBe(doc.getHistory());
   });
 
+  it('focusNode - using drillDown', () => {
+    const doc = new DocumentModel(project, formSchema);
+    expect(doc.focusNode.id).toBe('page');
+
+    doc.drillDown(doc.getNode('node_k1ow3cbb'));
+    expect(doc.focusNode.id).toBe('node_k1ow3cbb');
+  });
+
+  it('focusNode - using drillDown & import', () => {
+    const doc = new DocumentModel(project, formSchema);
+    expect(doc.focusNode.id).toBe('page');
+
+    doc.drillDown(doc.getNode('node_k1ow3cbb'));
+    doc.import(formSchema);
+    expect(doc.focusNode.id).toBe('node_k1ow3cbb');
+  });
+
+  it('focusNode - using focusNodeSelector', () => {
+    const doc = new DocumentModel(project, formSchema);
+    editor.set('focusNodeSelector', (rootNode) => {
+      return rootNode.children.get(1);
+    });
+    expect(doc.focusNode.id).toBe('node_k1ow3cbb');
+  });
+
+  it('getNodeCount', () => {
+    const doc = new DocumentModel(project);
+    // using default schema, only one node
+    expect(doc.getNodeCount()).toBe(1);
+  });
+
+  it('getNodeSchema', () => {
+    const doc = new DocumentModel(project, formSchema);
+    expect(doc.getNodeSchema('page').id).toBe('page');
+  });
+
+  it('export - with __isTopFixed__', () => {
+    formSchema.children[1].props.__isTopFixed__ = true;
+    const doc = new DocumentModel(project, formSchema);
+
+    const schema = doc.export();
+    expect(schema.children).toHaveLength(3);
+    expect(schema.children[0].componentName).toBe('RootContent');
+    expect(schema.children[1].componentName).toBe('RootHeader');
+    expect(schema.children[2].componentName).toBe('RootFooter');
+  });
+
+  describe('createNode', () => {
+    it('same id && componentName', () => {
+      const doc = new DocumentModel(project, formSchema);
+      const node = doc.createNode({
+        componentName: 'RootFooter',
+        id: 'node_k1ow3cbc',
+        props: {},
+        condition: true,
+      });
+      expect(node.parent).toBeNull();
+    });
+
+    it('same id && different componentName', () => {
+      const doc = new DocumentModel(project, formSchema);
+      const originalNode = doc.getNode('node_k1ow3cbc');
+      const node = doc.createNode({
+        componentName: 'RootFooter2',
+        id: 'node_k1ow3cbc',
+        props: {},
+        condition: true,
+      });
+      // expect(originalNode.parent).toBeNull();
+      expect(node.id).not.toBe('node_k1ow3cbc');
+    });
+  });
+
+  it('setSuspense', () => {
+    const doc = new DocumentModel(project, formSchema);
+    expect(doc.opened).toBeFalsy();
+    doc.setSuspense(false);
+  });
+
   it('registerAddon / getAddonData / exportAddonData', () => {
     const doc = new DocumentModel(project);
+    expect(doc.getAddonData('a')).toBeUndefined();
+
     doc.registerAddon('a', () => 'addon a');
     doc.registerAddon('a', () => 'modified addon a');
     doc.registerAddon('b', () => 'addon b');
@@ -138,6 +217,7 @@ describe('document-model 测试', () => {
   it('checkNesting / checkDropTarget / checkNestingUp / checkNestingDown', () => {
     designer.createComponentMeta(pageMeta);
     designer.createComponentMeta(formMeta);
+    designer.createComponentMeta(otherMeta);
     const doc = new DocumentModel(project, formSchema);
 
     expect(
@@ -159,6 +239,26 @@ describe('document-model 测试', () => {
         data: { componentName: 'Form' },
       }),
     ).toBeTruthy();
+    expect(
+      doc.checkNesting(doc.getNode('page'), doc.getNode('form'))
+    ).toBeTruthy();
+    expect(
+      doc.checkNesting(doc.getNode('page'), null)
+    ).toBeTruthy();
+    expect(
+      doc.checkNesting(doc.getNode('page'), {
+        type: 'nodedata',
+        data: { componentName: 'Other' },
+      })
+    ).toBeFalsy();
+
+    expect(
+      doc.checkNestingUp(doc.getNode('page'), { componentName: 'Other' })
+    ).toBeFalsy();
+
+    expect(
+      doc.checkNestingDown(doc.getNode('page'), { componentName: 'Other' })
+    ).toBeTruthy();
 
     expect(doc.checkNestingUp(doc.getNode('page'), null)).toBeTruthy();
   });
@@ -175,8 +275,10 @@ describe('document-model 测试', () => {
       { componentName: 'Other', package: '@ali/vc-other' }
     );
     expect(comps.find(comp => comp.componentName === 'Page')).toEqual(
-      { componentName: 'Page', devMode: 'lowcode' }
+      { componentName: 'Page', devMode: 'lowCode' }
     );
+
+    const comps2 = doc.getComponentsMap(['Div']);
   });
 
   it('acceptRootNodeVisitor / getRootNodeVisitor', () => {

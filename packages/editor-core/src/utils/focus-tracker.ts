@@ -1,4 +1,8 @@
 export class FocusTracker {
+  private actives: Focusable[] = [];
+
+  private modals: Array<{ checkDown: (e: MouseEvent) => boolean; checkOpen: () => boolean }> = [];
+
   mount(win: Window) {
     const checkDown = (e: MouseEvent) => {
       if (this.checkModalDown(e)) {
@@ -16,13 +20,9 @@ export class FocusTracker {
     };
   }
 
-  private actives: Focusable[] = [];
-
   get first() {
     return this.actives[0];
   }
-
-  private modals: Array<{ checkDown: (e: MouseEvent) => boolean; checkOpen: () => boolean }> = [];
 
   addModal(checkDown: (e: MouseEvent) => boolean, checkOpen: () => boolean) {
     this.modals.push({
@@ -32,11 +32,11 @@ export class FocusTracker {
   }
 
   private checkModalOpen(): boolean {
-    return this.modals.some(item => item.checkOpen());
+    return this.modals.some((item) => item.checkOpen());
   }
 
   private checkModalDown(e: MouseEvent): boolean {
-    return this.modals.some(item => item.checkDown(e));
+    return this.modals.some((item) => item.checkDown(e));
   }
 
   execSave() {
@@ -154,7 +154,3 @@ export class Focusable {
     }
   }
 }
-
-export const focusTracker = new FocusTracker();
-
-focusTracker.mount(window);

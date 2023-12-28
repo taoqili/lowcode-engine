@@ -1,8 +1,8 @@
 /* eslint-disable @typescript-eslint/indent */
 
 import {
-  CompositeValue,
-  JSExpression,
+  IPublicTypeCompositeValue,
+  IPublicTypeJSExpression,
   InterpretDataSourceConfig,
   isJSExpression,
   isJSFunction,
@@ -27,17 +27,40 @@ import {
 
 import { generateCompositeType } from '../../../utils/compositeType';
 import { parseExpressionConvertThis2Context } from '../../../utils/expressionParser';
-import { isContainerSchema } from '../../../utils/schema';
+import { isValidContainerType } from '../../../utils/schema';
 import { REACT_CHUNK_NAME } from './const';
+import { isJSExpressionFn } from '../../../utils/common';
 
 export interface PluginConfig {
-  fileType: string;
+  fileType?: string;
+
+  /**
+   * 数据源配置
+   */
+  datasourceConfig?: {
+
+    /** 数据源引擎的版本 */
+    engineVersion?: string;
+
+    /** 数据源引擎的包名 */
+    enginePackage?: string;
+
+    /** 数据源 handlers 的版本 */
+    handlersVersion?: {
+      [key: string]: string;
+    };
+
+    /** 数据源 handlers 的包名 */
+    handlersPackages?: {
+      [key: string]: string;
+    };
+  };
 }
 
 const pluginFactory: BuilderComponentPluginFactory<PluginConfig> = (config?) => {
-  const cfg: PluginConfig = {
-    fileType: FileType.JSX,
+  const cfg = {
     ...config,
+    fileType: config?.fileType || FileType.JSX,
   };
 
   const plugin: BuilderComponentPlugin = async (pre: ICodeStruct) => {
@@ -46,12 +69,12 @@ const pluginFactory: BuilderComponentPluginFactory<PluginConfig> = (config?) => 
     };
 
     const scope = Scope.createRootScope();
-    const dataSourceConfig = isContainerSchema(pre.ir) ? pre.ir.dataSource : null;
+    const dataSourceConfig = isValidContainerType(pre.ir) ? pre.ir.dataSource : null;
     const dataSourceItems: InterpretDataSourceConfig[] =
       (dataSourceConfig && dataSourceConfig.list) || [];
     const dataSourceEngineOptions = { runtimeConfig: true };
     if (dataSourceItems.length > 0) {
-      const requestHandlersMap: Record<string, JSExpression> = {};
+      const requestHandlersMap: Record<string, IPublicTypeJSExpression> = {};
 
       dataSourceItems.forEach((ds) => {
         const dsType = ds.type || 'fetch';
@@ -65,7 +88,9 @@ const pluginFactory: BuilderComponentPluginFactory<PluginConfig> = (config?) => 
           };
 
           const handlerFactoryExportName = `create${changeCase.pascal(dsType)}Handler`;
-          const handlerPkgName = `@alilc/lowcode-datasource-${changeCase.kebab(dsType)}-handler`;
+          const handlerPkgName =
+            cfg.datasourceConfig?.handlersPackages?.[dsType] ||
+            `@alilc/lowcode-datasource-${changeCase.kebab(dsType)}-handler`;
 
           next.chunks.push({
             type: ChunkType.STRING,
@@ -164,16 +189,16 @@ const pluginFactory: BuilderComponentPluginFactory<PluginConfig> = (config?) => 
 
 export default pluginFactory;
 
-function wrapAsFunction(value: CompositeValue, scope: IScope): CompositeValue {
-  if (isJSExpression(value) || isJSFunction(value)) {
+function wrapAsFunction(value: IPublicTypeCompositeValue, scope: IScope): IPublicTypeCompositeValue {
+  if (isJSExpression(value) || isJSFunction(value) || isJSExpressionFn(value)) {
     return {
       type: 'JSExpression',
-      value: `function(){ return ((${value.value}))}`,
+      value: `function(){ return ((${value.value}))}.bind(this)`,
     };
   }
 
   return {
     type: 'JSExpression',
-    value: `function(){return((${generateCompositeType(value, scope)}))}`,
+    value: `function(){return((${generateCompositeType(value, scope)}))}.bind(this)`,
   };
 }

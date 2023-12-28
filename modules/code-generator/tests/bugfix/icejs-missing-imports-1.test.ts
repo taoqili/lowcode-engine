@@ -1,6 +1,7 @@
 import CodeGenerator from '../../src';
 import * as fs from 'fs';
 import * as path from 'path';
+import { createDiskPublisher } from '../helpers/solutionHelper';
 
 const testCaseBaseName = path.basename(__filename, '.test.ts');
 
@@ -21,7 +22,7 @@ test(testCaseBaseName, async () => {
   Button,
   Typography,
   Tag,
-} from "@alilc/antd-lowcode-materials/dist/antd-lowcode.esm.js";`);
+} from '@alilc/antd-lowcode-materials/dist/antd-lowcode.esm.js';`);
 });
 
 function exportProject(inputPath: string, outputPath: string) {
@@ -31,7 +32,7 @@ function exportProject(inputPath: string, outputPath: string) {
 
   return builder.generateProject(newSchema).then(async (result) => {
     // displayResultInConsole(result);
-    const publisher = CodeGenerator.publishers.disk();
+    const publisher = createDiskPublisher();
     await publisher.publish({
       project: result,
       outputPath,

@@ -1,9 +1,7 @@
-import { Editor, action, makeObservable } from '@alilc/lowcode-editor-core';
+import { action, makeObservable, obx, engineConfig, IEditor, FocusTracker } from '@alilc/lowcode-editor-core';
 import {
   DockConfig,
-  PanelConfig,
   WidgetConfig,
-  IWidgetBaseConfig,
   PanelDockConfig,
   DialogDockConfig,
   isDockConfig,
@@ -11,19 +9,29 @@ import {
   isPanelConfig,
   DividerConfig,
   isDividerConfig,
-  IWidgetConfigArea,
 } from './types';
-import Panel, { isPanel } from './widget/panel';
-import WidgetContainer from './widget/widget-container';
-import Area from './area';
-import Widget, { isWidget, IWidget } from './widget/widget';
-import PanelDock from './widget/panel-dock';
-import Dock from './widget/dock';
+import { isPanel, Panel } from './widget/panel';
+import { WidgetContainer } from './widget/widget-container';
+import { Area } from './area';
+import { isWidget, IWidget, Widget } from './widget/widget';
+import { PanelDock } from './widget/panel-dock';
+import { Dock } from './widget/dock';
 import { Stage, StageConfig } from './widget/stage';
 import { isValidElement } from 'react';
-import { isPlainObject, uniqueId } from '@alilc/lowcode-utils';
+import { isPlainObject, uniqueId, Logger } from '@alilc/lowcode-utils';
 import { Divider } from '@alifd/next';
-import { EditorConfig, PluginClassSet } from '@alilc/lowcode-types';
+import {
+  EditorConfig,
+  PluginClassSet,
+  IPublicTypeWidgetBaseConfig,
+  IPublicTypeWidgetConfigArea,
+  IPublicTypeSkeletonConfig,
+  IPublicApiSkeleton,
+  IPublicTypeConfigTransducer,
+  IPublicTypePanelConfig,
+} from '@alilc/lowcode-types';
+
+const logger = new Logger({ level: 'warn', bizName: 'skeleton' });
 
 export enum SkeletonEvents {
   PANEL_DOCK_ACTIVE = 'skeleton.panel-dock.active',
@@ -36,8 +44,75 @@ export enum SkeletonEvents {
   WIDGET_ENABLE = 'skeleton.widget.enable',
 }
 
-export class Skeleton {
+export interface ISkeleton extends Omit<IPublicApiSkeleton,
+  'showPanel' |
+  'hidePanel' |
+  'showWidget' |
+  'enableWidget' |
+  'hideWidget' |
+  'disableWidget' |
+  'showArea' |
+  'onShowPanel' |
+  'onHidePanel' |
+  'onShowWidget' |
+  'onHideWidget' |
+  'remove' |
+  'hideArea' |
+  'add'
+> {
+  editor: IEditor;
+
+  readonly leftArea: Area<DockConfig | PanelDockConfig | DialogDockConfig>;
+
+  readonly topArea: Area<DockConfig | DividerConfig | PanelDockConfig | DialogDockConfig>;
+
+  readonly subTopArea: Area<DockConfig | DividerConfig | PanelDockConfig | DialogDockConfig>;
+
+  readonly toolbar: Area<DockConfig | DividerConfig | PanelDockConfig | DialogDockConfig>;
+
+  readonly leftFixedArea: Area<IPublicTypePanelConfig, Panel>;
+
+  readonly leftFloatArea: Area<IPublicTypePanelConfig, Panel>;
+
+  readonly rightArea: Area<IPublicTypePanelConfig, Panel>;
+
+  readonly mainArea: Area<WidgetConfig | IPublicTypePanelConfig, Widget | Panel>;
+
+  readonly bottomArea: Area<IPublicTypePanelConfig, Panel>;
+
+  readonly stages: Area<StageConfig, Stage>;
+
+  readonly widgets: IWidget[];
+
+  readonly focusTracker: FocusTracker;
+
+  getPanel(name: string): Panel | undefined;
+
+  getWidget(name: string): IWidget | undefined;
+
+  buildFromConfig(config?: EditorConfig, components?: PluginClassSet): void;
+
+  createStage(config: any): string | undefined;
+
+  getStage(name: string): Stage | null;
+
+  createContainer(
+    name: string,
+    handle: (item: any) => any,
+    exclusive?: boolean,
+    checkVisible?: () => boolean,
+    defaultSetCurrent?: boolean,
+  ): WidgetContainer;
+
+  createPanel(config: IPublicTypePanelConfig): Panel;
+
+  add(config: IPublicTypeSkeletonConfig, extraConfig?: Record<string, any>): IWidget | Widget | Panel | Stage | Dock | PanelDock | undefined;
+}
+
+export class Skeleton implements ISkeleton {
   private panels = new Map<string, Panel>();
+
+  private configTransducers: IPublicTypeConfigTransducer[] = [];
 
   private containers = new Map<string, WidgetContainer<any>>();
 
@@ -45,21 +120,27 @@ export class Skeleton {
 
   readonly topArea: Area<DockConfig | DividerConfig | PanelDockConfig | DialogDockConfig>;
 
+  readonly subTopArea: Area<DockConfig | DividerConfig | PanelDockConfig | DialogDockConfig>;
+
   readonly toolbar: Area<DockConfig | DividerConfig | PanelDockConfig | DialogDockConfig>;
 
-  readonly leftFixedArea: Area<PanelConfig, Panel>;
+  readonly leftFixedArea: Area<IPublicTypePanelConfig, Panel>;
 
-  readonly leftFloatArea: Area<PanelConfig, Panel>;
+  readonly leftFloatArea: Area<IPublicTypePanelConfig, Panel>;
 
-  readonly rightArea: Area<PanelConfig, Panel>;
+  readonly rightArea: Area<IPublicTypePanelConfig, Panel>;
 
-  readonly mainArea: Area<WidgetConfig | PanelConfig, Widget | Panel>;
+  @obx readonly mainArea: Area<WidgetConfig | IPublicTypePanelConfig, Widget | Panel>;
 
-  readonly bottomArea: Area<PanelConfig, Panel>;
+  readonly bottomArea: Area<IPublicTypePanelConfig, Panel>;
 
   readonly stages: Area<StageConfig, Stage>;
 
-  constructor(readonly editor: Editor) {
+  readonly widgets: IWidget[] = [];
+
+  readonly focusTracker = new FocusTracker();
+
+  constructor(readonly editor: IEditor, readonly viewName: string = 'global') {
     makeObservable(this);
     this.leftArea = new Area(
       this,
@@ -75,6 +156,17 @@ export class Skeleton {
     this.topArea = new Area(
       this,
       'topArea',
+      (config) => {
+        if (isWidget(config)) {
+          return config;
+        }
+        return this.createWidget(config);
+      },
+      false,
+    );
+    this.subTopArea = new Area(
+      this,
+      'subTopArea',
       (config) => {
         if (isWidget(config)) {
           return config;
@@ -160,7 +252,9 @@ export class Skeleton {
 
     this.setupPlugins();
     this.setupEvents();
+    this.focusTracker.mount(window);
   }
+
   /**
    * setup events
    *
@@ -168,11 +262,11 @@ export class Skeleton {
    */
   setupEvents() {
     // adjust pinned status when panel shown
-    this.editor.on('skeleton.panel.show', (panelName, panel) => {
+    this.editor.eventBus.on(SkeletonEvents.PANEL_SHOW, (panelName, panel) => {
       const panelNameKey = `${panelName}-pinned-status-isFloat`;
-      const isInFloatAreaPreferenceExists = this.editor?.getPreference()?.contains(panelNameKey, 'skeleton');
+      const isInFloatAreaPreferenceExists = engineConfig.getPreference()?.contains(panelNameKey, 'skeleton');
       if (isInFloatAreaPreferenceExists) {
-        const isInFloatAreaFromPreference = this.editor?.getPreference()?.get(panelNameKey, 'skeleton');
+        const isInFloatAreaFromPreference = engineConfig.getPreference()?.get(panelNameKey, 'skeleton');
         const isCurrentInFloatArea = panel?.isChildOfFloatArea();
         if (isInFloatAreaFromPreference !== isCurrentInFloatArea) {
           this.toggleFloatStatus(panel);
@@ -199,7 +293,7 @@ export class Skeleton {
       this.leftFloatArea.add(panel);
       this.leftFloatArea.container.active(panel);
     }
-    this.editor?.getPreference()?.set(`${panel.name}-pinned-status-isFloat`, !isFloat, 'skeleton');
+    engineConfig.getPreference().set(`${panel.name}-pinned-status-isFloat`, !isFloat, 'skeleton');
   }
 
   buildFromConfig(config?: EditorConfig, components: PluginClassSet = {}) {
@@ -222,8 +316,8 @@ export class Skeleton {
     Object.keys(plugins).forEach((area) => {
       plugins[area].forEach((item) => {
         const { pluginKey, type, props = {}, pluginProps } = item;
-        const config: Partial<IWidgetBaseConfig> = {
-          area: area as IWidgetConfigArea,
+        const config: IPublicTypeWidgetBaseConfig = {
+          area: area as IPublicTypeWidgetConfigArea,
           type: 'Widget',
           name: pluginKey,
           contentProps: pluginProps,
@@ -250,18 +344,16 @@ export class Skeleton {
         if (pluginKey in components) {
           config.content = components[pluginKey];
         }
-        this.add(config as IWidgetBaseConfig);
+        this.add(config);
       });
     });
   }
 
   postEvent(event: SkeletonEvents, ...args: any[]) {
-    this.editor.emit(event, ...args);
+    this.editor.eventBus.emit(event, ...args);
   }
 
-  readonly widgets: IWidget[] = [];
-
-  createWidget(config: IWidgetBaseConfig | IWidget) {
+  createWidget(config: IPublicTypeWidgetBaseConfig | IWidget) {
     if (isWidget(config)) {
       return config;
     }
@@ -296,10 +388,11 @@ export class Skeleton {
     return this.widgets.find(widget => widget.name === name);
   }
 
-  createPanel(config: PanelConfig) {
+  createPanel(config: IPublicTypePanelConfig) {
     const parsedConfig = this.parseConfig(config);
-    const panel = new Panel(this, parsedConfig as PanelConfig);
+    const panel = new Panel(this, parsedConfig as IPublicTypePanelConfig);
     this.panels.set(panel.name, panel);
+    logger.debug(`Panel created with name: ${panel.name} \nconfig:`, config, '\n current panels: ', this.panels);
     return panel;
   }
 
@@ -332,7 +425,7 @@ export class Skeleton {
     return container;
   }
 
-  private parseConfig(config: IWidgetBaseConfig) {
+  private parseConfig(config: IPublicTypeWidgetBaseConfig) {
     if (config.parsed) {
       return config;
     }
@@ -358,11 +451,35 @@ export class Skeleton {
     return restConfig;
   }
 
-  add(config: IWidgetBaseConfig, extraConfig?: Record<string, any>) {
-    const parsedConfig = {
+  registerConfigTransducer(
+    transducer: IPublicTypeConfigTransducer,
+    level = 100,
+    id?: string,
+  ) {
+    transducer.level = level;
+    transducer.id = id;
+    const i = this.configTransducers.findIndex((item) => item.level != null && item.level > level);
+    if (i < 0) {
+      this.configTransducers.push(transducer);
+    } else {
+      this.configTransducers.splice(i, 0, transducer);
+    }
+  }
+
+  getRegisteredConfigTransducers(): IPublicTypeConfigTransducer[] {
+    return this.configTransducers;
+  }
+
+  add(config: IPublicTypeSkeletonConfig, extraConfig?: Record<string, any>): IWidget | Widget | Panel | Stage | Dock | PanelDock | undefined {
+    const registeredTransducers = this.getRegisteredConfigTransducers();
+
+    const parsedConfig = registeredTransducers.reduce((prevConfig, current) => {
+      return current(prevConfig);
+    }, {
       ...this.parseConfig(config),
       ...extraConfig,
-    };
+    });
+
     let { area } = parsedConfig;
     if (!area) {
       if (parsedConfig.type === 'Panel') {
@@ -379,24 +496,26 @@ export class Skeleton {
         return this.leftArea.add(parsedConfig as PanelDockConfig);
       case 'rightArea':
       case 'right':
-        return this.rightArea.add(parsedConfig as PanelConfig);
+        return this.rightArea.add(parsedConfig as IPublicTypePanelConfig);
       case 'topArea':
       case 'top':
         return this.topArea.add(parsedConfig as PanelDockConfig);
+      case 'subTopArea':
+        return this.subTopArea.add(parsedConfig as PanelDockConfig);
       case 'toolbar':
         return this.toolbar.add(parsedConfig as PanelDockConfig);
       case 'mainArea':
       case 'main':
       case 'center':
       case 'centerArea':
-        return this.mainArea.add(parsedConfig as PanelConfig);
+        return this.mainArea.add(parsedConfig as IPublicTypePanelConfig);
       case 'bottomArea':
       case 'bottom':
-        return this.bottomArea.add(parsedConfig as PanelConfig);
+        return this.bottomArea.add(parsedConfig as IPublicTypePanelConfig);
       case 'leftFixedArea':
-        return this.leftFixedArea.add(parsedConfig as PanelConfig);
+        return this.leftFixedArea.add(parsedConfig as IPublicTypePanelConfig);
       case 'leftFloatArea':
-        return this.leftFloatArea.add(parsedConfig as PanelConfig);
+        return this.leftFloatArea.add(parsedConfig as IPublicTypePanelConfig);
       case 'stages':
         return this.stages.add(parsedConfig as StageConfig);
       default:

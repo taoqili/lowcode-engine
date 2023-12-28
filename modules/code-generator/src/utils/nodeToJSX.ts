@@ -1,5 +1,6 @@
 import _ from 'lodash';
-import { NodeSchema, isNodeSchema, NodeDataType, CompositeValue } from '@alilc/lowcode-types';
+import { pipe } from 'fp-ts/function';
+import { IPublicTypeNodeSchema, isNodeSchema, IPublicTypeNodeDataType, IPublicTypeCompositeValue } from '@alilc/lowcode-types';
 
 import {
   IScope,
@@ -17,6 +18,8 @@ import { getStaticExprValue } from './common';
 import { executeFunctionStack } from './aopHelper';
 import { encodeJsxStringNode } from './encodeJsxAttrString';
 import { unwrapJsExprQuoteInJsx } from './jsxHelpers';
+import { transformThis2Context } from '../core/jsx/handlers/transformThis2Context';
+import { isValidIdentifier } from './validate';
 
 function mergeNodeGeneratorConfig(
   cfg1: NodeGeneratorConfig,
@@ -55,7 +58,7 @@ export function isPureString(v: string) {
 }
 
 function generateAttrValue(
-  attrData: { attrName: string; attrValue: CompositeValue },
+  attrData: { attrName: string; attrValue: IPublicTypeCompositeValue },
   scope: IScope,
   config?: NodeGeneratorConfig,
 ): CodePiece[] {
@@ -74,7 +77,7 @@ function generateAttrValue(
 
 function generateAttr(
   attrName: string,
-  attrValue: CompositeValue,
+  attrValue: IPublicTypeCompositeValue,
   scope: IScope,
   config?: NodeGeneratorConfig,
 ): CodePiece[] {
@@ -113,7 +116,7 @@ function generateAttr(
 }
 
 function generateAttrs(
-  nodeItem: NodeSchema,
+  nodeItem: IPublicTypeNodeSchema,
   scope: IScope,
   config?: NodeGeneratorConfig,
 ): CodePiece[] {
@@ -124,11 +127,13 @@ function generateAttrs(
   if (props) {
     if (!Array.isArray(props)) {
       Object.keys(props).forEach((propName: string) => {
-        pieces = pieces.concat(generateAttr(propName, props[propName], scope, config));
+        if (isValidIdentifier(propName)) {
+          pieces = pieces.concat(generateAttr(propName, props[propName] as IPublicTypeCompositeValue, scope, config));
+        }
       });
     } else {
       props.forEach((prop) => {
-        if (prop.name && !prop.spread) {
+        if (prop.name && isValidIdentifier(prop.name) && !prop.spread) {
           pieces = pieces.concat(generateAttr(prop.name, prop.value, scope, config));
         }
 
@@ -142,7 +147,7 @@ function generateAttrs(
 }
 
 function generateBasicNode(
-  nodeItem: NodeSchema,
+  nodeItem: IPublicTypeNodeSchema,
   scope: IScope,
   config?: NodeGeneratorConfig,
 ): CodePiece[] {
@@ -158,7 +163,7 @@ function generateBasicNode(
 }
 
 function generateSimpleNode(
-  nodeItem: NodeSchema,
+  nodeItem: IPublicTypeNodeSchema,
   scope: IScope,
   config?: NodeGeneratorConfig,
 ): CodePiece[] {
@@ -180,7 +185,7 @@ function generateSimpleNode(
 function linkPieces(pieces: CodePiece[]): string {
   const tagsPieces = pieces.filter((p) => p.type === PIECE_TYPE.TAG);
   if (tagsPieces.length !== 1) {
-    throw new CodeGeneratorError('One node only need one tag define');
+    throw new CodeGeneratorError('Only one tag definition required', tagsPieces);
   }
   const tagName = tagsPieces[0].value;
 
@@ -214,13 +219,13 @@ function linkPieces(pieces: CodePiece[]): string {
 }
 
 function generateNodeSchema(
-  nodeItem: NodeSchema,
+  nodeItem: IPublicTypeNodeSchema,
   scope: IScope,
   config?: NodeGeneratorConfig,
 ): string {
   const pieces: CodePiece[] = [];
   if (config?.nodePlugins) {
-    const res = executeFunctionStack<NodeSchema, CodePiece[], NodeGeneratorConfig>(
+    const res = executeFunctionStack<IPublicTypeNodeSchema, CodePiece[], NodeGeneratorConfig>(
       nodeItem,
       scope,
       config.nodePlugins,
@@ -245,16 +250,18 @@ function generateNodeSchema(
  * @type NodePlugin Extended
  *
  * @export
- * @param {NodeSchema} nodeItem 当前 UI 节点
+ * @param {IPublicTypeNodeSchema} nodeItem 当前 UI 节点
  * @returns {CodePiece[]} 实现功能的相关代码片段
  */
 export function generateReactLoopCtrl(
-  nodeItem: NodeSchema,
+  nodeItem: IPublicTypeNodeSchema,
   scope: IScope,
   config?: NodeGeneratorConfig,
   next?: NodePlugin,
 ): CodePiece[] {
   if (nodeItem.loop) {
+    const tolerateEvalErrors = config?.tolerateEvalErrors ?? true;
+
     const loopItemName = nodeItem.loopArgs?.[0] || 'item';
     const loopIndexName = nodeItem.loopArgs?.[1] || 'index';
 
@@ -262,9 +269,19 @@ export function generateReactLoopCtrl(
     const subScope = scope.createSubScope([loopItemName, loopIndexName]);
     const pieces: CodePiece[] = next ? next(nodeItem, subScope, config) : [];
 
-    const loopDataExpr = generateCompositeType(nodeItem.loop, scope, {
-      handlers: config?.handlers,
-    });
+    // 生成循环变量表达式
+    const loopDataExpr = pipe(
+      nodeItem.loop,
+      // 将 JSExpression 转换为 JS 表达式代码:
+      (expr) => generateCompositeType(expr, scope, {
+          handlers: config?.handlers,
+          tolerateEvalErrors: false, // 这个内部不需要包 try catch, 下面会统一加的
+        }),
+      // 将 this.xxx 转换为 __$$context.xxx:
+      (expr) => transformThis2Context(expr, scope, { ignoreRootScope: true }),
+      // 如果要容忍错误，则包一层 try catch (基于助手函数 __$$evalArray)
+      (expr) => (tolerateEvalErrors ? `__$$evalArray(() => (${expr}))` : expr),
+    );
 
     pieces.unshift({
       value: `(${loopDataExpr}).map((${loopItemName}, ${loopIndexName}) => ((__$$context) => (`,
@@ -287,11 +304,11 @@ export function generateReactLoopCtrl(
  * @type NodePlugin
  *
  * @export
- * @param {NodeSchema} nodeItem 当前 UI 节点
+ * @param {IPublicTypeNodeSchema} nodeItem 当前 UI 节点
  * @returns {CodePiece[]} 实现功能的相关代码片段
  */
 export function generateConditionReactCtrl(
-  nodeItem: NodeSchema,
+  nodeItem: IPublicTypeNodeSchema,
   scope: IScope,
   config?: NodeGeneratorConfig,
   next?: NodePlugin,
@@ -322,11 +339,11 @@ export function generateConditionReactCtrl(
  * @type NodePlugin
  *
  * @export
- * @param {NodeSchema} nodeItem 当前 UI 节点
+ * @param {IPublicTypeNodeSchema} nodeItem 当前 UI 节点
  * @returns {CodePiece[]} 实现功能的相关代码片段
  */
 export function generateReactExprInJS(
-  nodeItem: NodeSchema,
+  nodeItem: IPublicTypeNodeSchema,
   scope: IScope,
   config?: NodeGeneratorConfig,
   next?: NodePlugin,
@@ -351,7 +368,7 @@ export function generateReactExprInJS(
 const handleChildren = (v: string[]) => v.join('');
 
 export function createNodeGenerator(cfg: NodeGeneratorConfig = {}): NodeGenerator<string> {
-  const generateNode = (nodeItem: NodeDataType, scope: IScope): string => {
+  const generateNode = (nodeItem: IPublicTypeNodeDataType, scope: IScope): string => {
     if (_.isArray(nodeItem)) {
       const resList = nodeItem.map((n) => generateNode(n, scope));
       return handleChildren(resList);
@@ -376,8 +393,7 @@ export function createNodeGenerator(cfg: NodeGeneratorConfig = {}): NodeGenerato
     return `{${valueStr}}`;
   };
 
-  return (nodeItem: NodeDataType, scope: IScope) =>
-    unwrapJsExprQuoteInJsx(generateNode(nodeItem, scope));
+  return (nodeItem: IPublicTypeNodeDataType, scope: IScope) => unwrapJsExprQuoteInJsx(generateNode(nodeItem, scope));
 }
 
 const defaultReactGeneratorConfig: NodeGeneratorConfig = {

@@ -1,11 +1,12 @@
 import { IBaseRenderComponent } from '../types';
+import logger from '../utils/logger';
 import baseRendererFactory from './base';
 
 export default function tempRendererFactory(): IBaseRenderComponent {
   const BaseRenderer = baseRendererFactory();
 
   return class TempRenderer extends BaseRenderer {
-    static dislayName = 'temp-renderer';
+    static displayName = 'TempRenderer';
 
     __namespace = 'temp';
 
@@ -41,7 +42,7 @@ export default function tempRendererFactory(): IBaseRenderComponent {
     }
 
     async componentDidCatch(e: any) {
-      console.warn(e);
+      logger.warn(e);
       this.__debug(`componentDidCatch - ${this.props.__schema.fileName}`);
     }
 
@@ -51,7 +52,7 @@ export default function tempRendererFactory(): IBaseRenderComponent {
         return '下钻编辑 schema 结构异常！';
       }
 
-      this.__debug(`${TempRenderer.dislayName} render - ${__schema?.fileName}`);
+      this.__debug(`${TempRenderer.displayName} render - ${__schema?.fileName}`);
 
       return this.__renderContent(this.__renderContextProvider({ __ctx }));
     }

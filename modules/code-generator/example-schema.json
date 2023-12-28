@@ -62,17 +62,17 @@
         "router": "/"
       },
       "props": {
-        "ref": "outterView",
+        "ref": "outerView",
         "autoLoading": true
       },
       "fileName": "test",
       "state": {
-        "text": "outter"
+        "text": "outer"
       },
       "lifeCycles": {
         "componentDidMount": {
-          "type": "JSExpression",
-          "value": "function() { console.log('componentDidMount'); }"
+          "type": "JSFunction",
+          "value": "function componentDidMount() { console.log('componentDidMount'); }"
         }
       },
       "dataSource": {
@@ -87,11 +87,11 @@
             "type": "fetch",
             "options": {
               "method": "GET",
-              "uri": "https://shs.alibaba-inc.com/mock/1458/demo/user",
+              "uri": "https://shs.xxx.com/mock/1458/demo/user",
               "isSync": true
             },
             "dataHandler": {
-              "type": "JSExpression",
+              "type": "JSFunction",
               "value": "function (response) {\nif (!response.data.success){\n    throw new Error(response.data.message);\n  }\n  return response.data.data;\n}"
             }
           },
@@ -101,17 +101,17 @@
             "type": "fetch",
             "options": {
               "method": "GET",
-              "uri": "https://shs.alibaba-inc.com/mock/1458/demo/orders",
+              "uri": "https://shs.xxx.com/mock/1458/demo/orders",
               "isSync": true
             },
             "dataHandler": {
-              "type": "JSExpression",
+              "type": "JSFunction",
               "value": "function (response) {\nif (!response.data.success){\n    throw new Error(response.data.message);\n  }\n  return response.data.data.result;\n}"
             }
           }
         ],
         "dataHandler": {
-          "type": "JSExpression",
+          "type": "JSFunction",
           "value": "function (dataMap) {\n  console.info(\"All datasources loaded:\", dataMap);\n}"
         }
       },
@@ -245,7 +245,7 @@
   ],
   "constants": {
     "ENV": "prod",
-    "DOMAIN": "xxx.alibaba-inc.com"
+    "DOMAIN": "xxx.xxx.com"
   },
   "css": "body {font-size: 12px;} .table { width: 100px;}",
   "config": {

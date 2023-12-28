@@ -11,6 +11,7 @@ import {
   FileType,
   ICodeStruct,
 } from '../../../types';
+import { getSlotRelativePath } from '../../../utils/pathHelper';
 
 export interface PluginConfig {
   fileType: string;
@@ -31,9 +32,8 @@ const pluginFactory: BuilderComponentPluginFactory<PluginConfig> = (config?) => 
       type: ChunkType.STRING,
       fileType: cfg.fileType,
       name: COMMON_CHUNK_NAME.InternalDepsImport,
-      // TODO: 下面这个路径有没有更好的方式来获取？而非写死
       content: `
-        import { i18n as _$$i18n } from '../../i18n';
+        import * as __$$i18n from '${getSlotRelativePath({ contextData: next.contextData, from: 'components', to: 'i18n' })}';
       `,
       linkAfter: [COMMON_CHUNK_NAME.ExternalDepsImport],
     });
@@ -41,13 +41,11 @@ const pluginFactory: BuilderComponentPluginFactory<PluginConfig> = (config?) => 
     next.chunks.push({
       type: ChunkType.STRING,
       fileType: cfg.fileType,
-      name: CLASS_DEFINE_CHUNK_NAME.InsMethod,
+      name: CLASS_DEFINE_CHUNK_NAME.ConstructorContent,
       content: `
-        i18n = (i18nKey) => {
-          return _$$i18n(i18nKey);
-        }
+        __$$i18n._inject2(this);
       `,
-      linkAfter: [...DEFAULT_LINK_AFTER[CLASS_DEFINE_CHUNK_NAME.InsMethod]],
+      linkAfter: [...DEFAULT_LINK_AFTER[CLASS_DEFINE_CHUNK_NAME.ConstructorContent]],
     });
 
     return next;

@@ -176,7 +176,7 @@ class Renderer extends Component<{
     if (this.startTime) {
       const time = Date.now() - this.startTime;
       const nodeCount = host.designer.currentDocument?.getNodeCount?.();
-      host.designer.editor?.emit(GlobalEvent.Node.Rerender, {
+      host.designer.editor?.eventBus.emit(GlobalEvent.Node.Rerender, {
         componentName: 'Renderer',
         type: 'All',
         time,
@@ -219,6 +219,7 @@ class Renderer extends Component<{
         onCompGetRef={(schema: any, ref: any) => {
           documentInstance.mountInstance(schema.id, ref);
         }}
+        thisRequiredInJSE={host.thisRequiredInJSE}
         documentId={document.id}
         getNode={(id: string) => documentInstance.getNode(id) as any}
         rendererName="PageRenderer"

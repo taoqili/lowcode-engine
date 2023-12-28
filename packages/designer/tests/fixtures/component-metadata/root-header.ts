@@ -1,11 +1,12 @@
+import { IPublicTypeComponentMetadata } from "@alilc/lowcode-types";
 export default {
   componentName: 'RootHeader',
   npm: {
     package: '@ali/vc-page',
   },
   title: '容器',
-  docUrl: 'http://gitlab.alibaba-inc.com/vision-components/vc-block/blob/master/README.md',
-  devMode: 'procode',
+  docUrl: 'https://github.com/alibaba/lowcode-materials/tree/main/docs',
+  devMode: 'proCode',
   tags: ['布局'],
   configure: {
     props: [
@@ -275,4 +276,4 @@ export default {
     ],
     autoruns: [],
   },
-};
+} as IPublicTypeComponentMetadata;

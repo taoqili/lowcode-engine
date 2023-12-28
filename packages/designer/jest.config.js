@@ -1,6 +1,6 @@
 const fs = require('fs');
 const { join } = require('path');
-const esModules = ['zen-logger'].join('|');
+const esModules = [].join('|');
 const pkgNames = fs.readdirSync(join('..')).filter(pkgName => !pkgName.startsWith('.'));
 
 const jestConfig = {
@@ -9,10 +9,18 @@ const jestConfig = {
   //   // '^.+\\.(ts|tsx)$': 'ts-jest',
   //   // '^.+\\.(js|jsx)$': 'babel-jest',
   // },
-  // testMatch: ['**/document/node/node.test.ts'],
-  // testMatch: ['**/designer/builtin-hotkey.test.ts'],
-  // testMatch: ['**/plugin/plugin-manager.test.ts'],
+  // testMatch: ['**/node-children.test.ts'],
+  // testMatch: ['**/plugin-manager.test.ts'],
+  // testMatch: ['**/history/history.test.ts'],
+  // testMatch: ['**/document-model.test.ts'],
+  // testMatch: ['**/prop.test.ts'],
   // testMatch: ['(/tests?/.*(test))\\.[jt]s$'],
+  // testMatch: ['**/document/node/node.add.test.ts'],
+  // testMatch: ['**/setting-field.test.ts'],
+  // testMatch: ['**/node.test.ts'],
+  // testMatch: ['**/builtin-hotkey.test.ts'],
+  // testMatch: ['**/selection.test.ts'],
+  // testMatch: ['**/plugin/sequencify.test.ts'],
   transformIgnorePatterns: [
     `/node_modules/(?!${esModules})/`,
   ],
@@ -31,6 +39,8 @@ const jestConfig = {
     '!src/builtin-simulator/live-editing/live-editing.ts',
     '!src/designer/offset-observer.ts',
     '!src/designer/clipboard.ts',
+    '!src/designer/scroller.ts',
+    '!src/builtin-simulator/host.ts',
     '!**/node_modules/**',
     '!**/vendor/**',
   ],

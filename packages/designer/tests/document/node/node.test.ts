@@ -1,17 +1,19 @@
 // @ts-nocheck
 import '../../fixtures/window';
-import { set, delayObxTick, delay } from '../../utils';
-import { Editor } from '@alilc/lowcode-editor-core';
+import { set } from '../../utils';
+import {
+  Editor,
+  globalContext,
+  Setters as InnerSetters,
+} from '@alilc/lowcode-editor-core';
 import { Project } from '../../../src/project/project';
+import { Workspace as InnerWorkspace } from '@alilc/lowcode-workspace';
 import { DocumentModel } from '../../../src/document/document-model';
 import {
   isRootNode,
   Node,
-  isNode,
   comparePosition,
   contains,
-  insertChild,
-  insertChildren,
   PositionNO,
 } from '../../../src/document/node/node';
 import { Designer } from '../../../src/designer/designer';
@@ -20,13 +22,15 @@ import divMetadata from '../../fixtures/component-metadata/div';
 import dialogMetadata from '../../fixtures/component-metadata/dialog';
 import btnMetadata from '../../fixtures/component-metadata/button';
 import formMetadata from '../../fixtures/component-metadata/form';
-import otherMeta from '../../fixtures/component-metadata/other';
 import pageMetadata from '../../fixtures/component-metadata/page';
 import rootHeaderMetadata from '../../fixtures/component-metadata/root-header';
 import rootContentMetadata from '../../fixtures/component-metadata/root-content';
 import rootFooterMetadata from '../../fixtures/component-metadata/root-footer';
+import { shellModelFactory } from '../../../../engine/src/modules/shell-model-factory';
+import { isNode } from '@alilc/lowcode-utils';
+import { Setters } from '@alilc/lowcode-shell';
 
-describe.skip('Node 方法测试', () => {
+describe('Node 方法测试', () => {
   let editor: Editor;
   let designer: Designer;
   let project: Project;
@@ -34,9 +38,12 @@ describe.skip('Node 方法测试', () => {
 
   beforeEach(() => {
     editor = new Editor();
-    designer = new Designer({ editor });
+    designer = new Designer({ editor, shellModelFactory });
     project = designer.project;
     doc = new DocumentModel(project, formSchema);
+    editor.set('setters', new Setters(new InnerSetters()));
+    !globalContext.has(Editor) && globalContext.register(editor, Editor);
+    !globalContext.has('workspace') && globalContext.register(new InnerWorkspace(), 'workspace');
   });
 
   afterEach(() => {
@@ -47,7 +54,60 @@ describe.skip('Node 方法测试', () => {
     project = null;
   });
 
-  it('condition group', () => {});
+  // Case 1: When children is null
+  test('initialChildren returns result of initialChildren function when children is null ', () => {
+    const node = new Node(doc, { componentName: 'Button', props: { a: 1 } });
+    const result = node.initialChildren(null);
+    // 预期结果是一个空数组
+    expect(result).toEqual([]);
+  });
+
+  // Case 2: When children is undefined
+  test('initialChildren returns result of initialChildren function when children is null ', () => {
+    const node = new Node(doc, { componentName: 'Button', props: { a: 1 } });
+    const result = node.initialChildren(undefined);
+    // 预期结果是一个空数组
+    expect(result).toEqual([]);
+  });
+
+  // Case 3: When children is array
+  test('initialChildren returns result of initialChildren function when children is null ', () => {
+    const node = new Node(doc, { componentName: 'Button', props: { a: 1 } });
+    const childrenArray = [{ id: 1, name: 'Child 1' }, { id: 2, name: 'Child 2' }];
+    const result = node.initialChildren(childrenArray);
+    // 预期结果是一个数组
+    expect(result).toEqual(childrenArray);
+  });
+
+  // Case 4: When children is not null and not an array
+  test('initialChildren returns result of initialChildren function when children is null ', () => {
+    const node = new Node(doc, { componentName: 'Button', props: { a: 1 } });
+    const childObject = { id: 1, name: 'Child 1' };
+    const result = node.initialChildren(childObject);
+    // 预期结果是一个数组
+    expect(result).toEqual([childObject]);
+  });
+
+  // Case 5: When children 0
+  test('initialChildren returns result of initialChildren function when children is null ', () => {
+    const node = new Node(doc, { componentName: 'Button', props: { a: 1 } });
+    const childObject = 0;
+    const result = node.initialChildren(childObject);
+    // 预期结果是一个数组
+    expect(result).toEqual([0]);
+  });
+
+  // Case 6: When children false
+  test('initialChildren returns result of initialChildren function when children is null ', () => {
+    const node = new Node(doc, { componentName: 'Button', props: { a: 1 } });
+    const childObject = false;
+    const result = node.initialChildren(childObject);
+    // 预期结果是一个数组
+    expect(result).toEqual([false]);
+  });
+
+
+  it('condition group', () => { });
 
   it('getExtraProp / setExtraProp', () => {
     const firstBtn = doc.getNode('node_k1ow3cbn')!;
@@ -360,7 +420,7 @@ describe.skip('Node 方法测试', () => {
     expect(mockFn).not.toHaveBeenCalled();
   });
 
-  it('addSlot / unlinkSlot / removeSlot', () => {});
+  it('addSlot / unlinkSlot / removeSlot', () => { });
 
   it('setProps', () => {
     const firstBtn = doc.getNode('node_k1ow3cbn')!;
@@ -400,7 +460,7 @@ describe.skip('Node 方法测试', () => {
     designer.createComponentMeta(btnMetadata);
     const btn = doc.getNode('node_k1ow3cbn');
     // 从 componentMeta 中获取到 title 值
-    expect(btn.title).toEqual({ type: 'i18n', 'zh-CN': '按钮', 'en-US': 'Button' } );
+    expect(btn.title).toEqual({ type: 'i18n', 'zh-CN': '按钮', 'en-US': 'Button' });
     // 从 extraProp 中获取值
     btn.setExtraProp('title', 'hello button');
     expect(btn.title).toBe('hello button');
@@ -474,15 +534,16 @@ describe.skip('Node 方法测试', () => {
   it('didDropIn / didDropOut', () => {
     const form = doc.getNode('node_k1ow3cbo');
     designer.createComponentMeta(divMetadata);
-    const callbacks = form.componentMeta.getMetadata().configure.advanced?.callbacks;
+    designer.createComponentMeta(formMetadata);
+    const callbacks = form.componentMeta.advanced.callbacks;
     const fn1 = callbacks.onNodeAdd = jest.fn();
     const fn2 = callbacks.onNodeRemove = jest.fn();
     const textField = doc.getNode('node_k1ow3cc9');
     form.didDropIn(textField);
-    expect(fn1).toHaveBeenCalledWith(textField, form);
+    expect(fn1).toHaveBeenCalledWith(textField.internalToShellNode(), form.internalToShellNode());
 
     form.didDropOut(textField);
-    expect(fn2).toHaveBeenCalledWith(textField, form);
+    expect(fn2).toHaveBeenCalledWith(textField.internalToShellNode(), form.internalToShellNode());
   });
 
   it('hover', () => {
@@ -538,7 +599,7 @@ describe.skip('Node 方法测试', () => {
     expect(comparePosition(firstBtn, firstCard)).toBe(PositionNO.BeforeOrAfter);
   });
 
-  it('getZLevelTop', () => {});
+  it('getZLevelTop', () => { });
   it('propsData', () => {
     expect(new Node(doc, { componentName: 'Leaf' }).propsData).toBeNull();
     expect(new Node(doc, { componentName: 'Fragment' }).propsData).toBeNull();

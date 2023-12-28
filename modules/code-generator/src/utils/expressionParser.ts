@@ -161,9 +161,13 @@ export function parseExpressionGetKeywords(expr: string | null | undefined): str
   try {
     const keywordVars = new OrderedSet<string>();
 
-    const ast = parser.parse(`!(${expr});`);
+    const ast = parser.parse(`!(${expr});`, {
+      plugins: [
+        'jsx',
+      ],
+    });
 
-    const addIdentifierIfNeeded = (x: Record<string, unknown> | number | null | undefined) => {
+    const addIdentifierIfNeeded = (x: Node | null | undefined) => {
       if (typeof x === 'object' && isIdentifier(x) && JS_KEYWORDS.includes(x.name)) {
         keywordVars.add(x.name);
       }
@@ -181,11 +185,11 @@ export function parseExpressionGetKeywords(expr: string | null | undefined): str
             const fieldValue = node[fieldName as keyof typeof node];
             if (typeof fieldValue === 'object') {
               if (Array.isArray(fieldValue)) {
-                fieldValue.forEach((item) => {
+                fieldValue.forEach((item: any) => {
                   addIdentifierIfNeeded(item);
                 });
               } else {
-                addIdentifierIfNeeded(fieldValue as Record<string, unknown> | null);
+                addIdentifierIfNeeded(fieldValue as any);
               }
             }
           });
@@ -213,7 +217,7 @@ export function parseExpressionGetGlobalVariables(
     const ast = parser.parse(`!(${expr});`);
 
     const addUndeclaredIdentifierIfNeeded = (
-      x: Record<string, unknown> | number | null | undefined,
+      x: Node | null | undefined,
       path: NodePath<Node>,
     ) => {
       if (typeof x === 'object' && isIdentifier(x) && !path.scope.hasBinding(x.name)) {
@@ -233,11 +237,11 @@ export function parseExpressionGetGlobalVariables(
             const fieldValue = node[fieldName as keyof typeof node];
             if (typeof fieldValue === 'object') {
               if (Array.isArray(fieldValue)) {
-                fieldValue.forEach((item) => {
+                fieldValue.forEach((item: any) => {
                   addUndeclaredIdentifierIfNeeded(item, path);
                 });
               } else {
-                addUndeclaredIdentifierIfNeeded(fieldValue as Record<string, unknown> | null, path);
+                addUndeclaredIdentifierIfNeeded(fieldValue as any, path);
               }
             }
           });

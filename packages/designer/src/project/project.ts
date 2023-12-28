@@ -1,18 +1,110 @@
-import { EventEmitter } from 'events';
-import { obx, computed, makeObservable, action } from '@alilc/lowcode-editor-core';
-import { Designer } from '../designer';
-import { DocumentModel, isDocumentModel, isPageSchema } from '../document';
-import { ProjectSchema, RootSchema } from '@alilc/lowcode-types';
+import { obx, computed, makeObservable, action, IEventBus, createModuleEventBus } from '@alilc/lowcode-editor-core';
+import { IDesigner } from '../designer';
+import { DocumentModel, isDocumentModel } from '../document';
+import type { IDocumentModel } from '../document';
+import { IPublicEnumTransformStage } from '@alilc/lowcode-types';
+import type {
+  IBaseApiProject,
+  IPublicTypeProjectSchema,
+  IPublicTypeRootSchema,
+  IPublicTypeComponentsMap,
+  IPublicTypeSimulatorRenderer,
+} from '@alilc/lowcode-types';
+import { isLowCodeComponentType, isProCodeComponentType } from '@alilc/lowcode-utils';
 import { ISimulatorHost } from '../simulator';
 
-export class Project {
-  private emitter = new EventEmitter();
+export interface IProject extends Omit<IBaseApiProject<
+  IDocumentModel
+>,
+  'simulatorHost' |
+  'importSchema' |
+  'exportSchema' |
+  'openDocument' |
+  'getDocumentById' |
+  'getCurrentDocument' |
+  'addPropsTransducer' |
+  'onRemoveDocument' |
+  'onChangeDocument' |
+  'onSimulatorHostReady' |
+  'onSimulatorRendererReady' |
+  'setI18n' |
+  'setConfig' |
+  'currentDocument' |
+  'selection' |
+  'documents' |
+  'createDocument' |
+  'getDocumentByFileName'
+> {
 
-  @obx.shallow readonly documents: DocumentModel[] = [];
+  get designer(): IDesigner;
 
-  private data: ProjectSchema = { version: '1.0.0', componentsMap: [], componentsTree: [], i18n: {} };
+  get simulator(): ISimulatorHost | null;
+
+  get currentDocument(): IDocumentModel | null | undefined;
+
+  get documents(): IDocumentModel[];
+
+  get i18n(): {
+    [local: string]: {
+      [key: string]: any;
+    };
+  };
+
+  mountSimulator(simulator: ISimulatorHost): void;
+
+  open(doc?: string | IDocumentModel | IPublicTypeRootSchema): IDocumentModel | null;
+
+  getDocumentByFileName(fileName: string): IDocumentModel | null;
+
+  createDocument(data?: IPublicTypeRootSchema): IDocumentModel;
+
+  load(schema?: IPublicTypeProjectSchema, autoOpen?: boolean | string): void;
+
+  getSchema(
+    stage?: IPublicEnumTransformStage,
+  ): IPublicTypeProjectSchema;
+
+  getDocument(id: string): IDocumentModel | null;
+
+  onCurrentDocumentChange(fn: (doc: IDocumentModel) => void): () => void;
+
+  onSimulatorReady(fn: (args: any) => void): () => void;
+
+  onRendererReady(fn: () => void): () => void;
+
+  /**
+   * 分字段设置储存数据，不记录操作记录
+   */
+  set<T extends keyof IPublicTypeProjectSchema>(key: T, value: IPublicTypeProjectSchema[T]): void;
+  set(key: string, value: unknown): void;
+
+  /**
+   * 分字段获取储存数据
+   */
+  get<T extends keyof IPublicTypeProjectSchema>(key: T): IPublicTypeProjectSchema[T];
+  get<T>(key: string): T;
+  get(key: string): unknown;
+
+  checkExclusive(activeDoc: DocumentModel): void;
+
+  setRendererReady(renderer: IPublicTypeSimulatorRenderer<any, any>): void;
+}
+
+export class Project implements IProject {
+  private emitter: IEventBus = createModuleEventBus('Project');
+
+  @obx.shallow readonly documents: IDocumentModel[] = [];
+
+  private data: IPublicTypeProjectSchema = {
+    version: '1.0.0',
+    componentsMap: [],
+    componentsTree: [],
+    i18n: {},
+  };
 
   private _simulator?: ISimulatorHost;
+
+  private isRendererReady: boolean = false;
 
   /**
    * 模拟器
@@ -21,14 +113,7 @@ export class Project {
     return this._simulator || null;
   }
 
-  // TODO: 考虑项目级别 History
-
-  constructor(readonly designer: Designer, schema?: ProjectSchema) {
-    makeObservable(this);
-    this.load(schema);
-  }
-
-  @computed get currentDocument() {
+  @computed get currentDocument(): IDocumentModel | null | undefined {
     return this.documents.find((doc) => doc.active);
   }
 
@@ -42,34 +127,76 @@ export class Project {
   }
 
   @obx.ref private _i18n: any = {};
-  get i18n(): any {
+  @computed get i18n(): any {
     return this._i18n;
   }
   set i18n(value: any) {
     this._i18n = value || {};
   }
 
+  private documentsMap = new Map<string, DocumentModel>();
+
+  constructor(readonly designer: IDesigner, schema?: IPublicTypeProjectSchema, readonly viewName = 'global') {
+    makeObservable(this);
+    this.load(schema);
+  }
+
+  private getComponentsMap(): IPublicTypeComponentsMap {
+    return this.documents.reduce<IPublicTypeComponentsMap>((
+      componentsMap: IPublicTypeComponentsMap,
+      curDoc: IDocumentModel,
+    ): IPublicTypeComponentsMap => {
+      const curComponentsMap = curDoc.getComponentsMap();
+      if (Array.isArray(curComponentsMap)) {
+        curComponentsMap.forEach((item) => {
+          const found = componentsMap.find((eItem) => {
+            if (
+              isProCodeComponentType(eItem) &&
+              isProCodeComponentType(item) &&
+              eItem.package === item.package &&
+              eItem.componentName === item.componentName
+            ) {
+              return true;
+            } else if (
+              isLowCodeComponentType(eItem) &&
+              eItem.componentName === item.componentName
+            ) {
+              return true;
+            }
+            return false;
+          });
+          if (found) return;
+          componentsMap.push(item);
+        });
+      }
+      return componentsMap;
+    }, [] as IPublicTypeComponentsMap);
+  }
+
   /**
    * 获取项目整体 schema
    */
-  getSchema(): ProjectSchema {
+  getSchema(
+    stage: IPublicEnumTransformStage = IPublicEnumTransformStage.Save,
+  ): IPublicTypeProjectSchema {
     return {
       ...this.data,
-      // TODO: future change this filter
-      componentsMap: this.currentDocument?.getComponentsMap(),
-      componentsTree: this.documents.filter((doc) => !doc.isBlank()).map((doc) => doc.schema),
+      componentsMap: this.getComponentsMap(),
+      componentsTree: this.documents
+        .filter((doc) => !doc.isBlank())
+        .map((doc) => doc.export(stage) || {} as IPublicTypeRootSchema),
       i18n: this.i18n,
     };
   }
 
   /**
-   * 替换当前document的schema,并触发渲染器的render
+   * 替换当前 document 的 schema，并触发渲染器的 render
    * @param schema
    */
-  setSchema(schema?: ProjectSchema) {
+  setSchema(schema?: IPublicTypeProjectSchema) {
     // FIXME: 这里的行为和 getSchema 并不对等，感觉不太对
     const doc = this.documents.find((doc) => doc.active);
-    doc && doc.import(schema?.componentsTree[0]);
+    doc && schema?.componentsTree[0] && doc.import(schema?.componentsTree[0]);
     this.simulator?.rerender();
   }
 
@@ -79,7 +206,7 @@ export class Project {
    * @param autoOpen true 自动打开文档 string 指定打开的文件
    */
   @action
-  load(schema?: ProjectSchema, autoOpen?: boolean | string) {
+  load(schema?: IPublicTypeProjectSchema, autoOpen?: boolean | string) {
     this.unload();
     // load new document
     this.data = {
@@ -99,8 +226,10 @@ export class Project {
         const documentInstances = this.data.componentsTree.map((data) => this.createDocument(data));
         // TODO: 暂时先读 config tabBar 里的值，后面看整个 layout 结构是否能作为引擎规范
         if (this.config?.layout?.props?.tabBar?.items?.length > 0) {
-          // slice(1)这个贼不雅，默认任务fileName 是类'/fileName'的形式
-          documentInstances.find((i) => i.fileName === this.config.layout.props.tabBar.items[0].path?.slice(1))?.open();
+          // slice(1) 这个贼不雅，默认任务 fileName 是类'/fileName'的形式
+          documentInstances
+            .find((i) => i.fileName === this.config.layout.props.tabBar.items[0].path?.slice(1))
+            ?.open();
         } else {
           documentInstances[0].open();
         }
@@ -123,7 +252,7 @@ export class Project {
     }
   }
 
-  removeDocument(doc: DocumentModel) {
+  removeDocument(doc: IDocumentModel) {
     const index = this.documents.indexOf(doc);
     if (index < 0) {
       return;
@@ -135,21 +264,9 @@ export class Project {
   /**
    * 分字段设置储存数据，不记录操作记录
    */
-  set(
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
-    key:
-    | 'version'
-    | 'componentsTree'
-    | 'componentsMap'
-    | 'utils'
-    | 'constants'
-    | 'i18n'
-    | 'css'
-    | 'dataSource'
-    | string,
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
-    value: any,
-  ): void {
+  set<T extends keyof IPublicTypeProjectSchema>(key: T, value: IPublicTypeProjectSchema[T]): void;
+  set(key: string, value: unknown): void;
+  set(key: string, value: unknown): void {
     if (key === 'config') {
       this.config = value;
     }
@@ -162,20 +279,10 @@ export class Project {
   /**
    * 分字段设置储存数据
    */
-  get(
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
-    key:
-    | 'version'
-    | 'componentsTree'
-    | 'componentsMap'
-    | 'utils'
-    | 'constants'
-    | 'i18n'
-    | 'css'
-    | 'dataSource'
-    | 'config'
-    | string,
-  ): any {
+  get<T extends keyof IPublicTypeRootSchema>(key: T): IPublicTypeRootSchema[T];
+  get<T>(key: string): T;
+  get(key: string): unknown;
+  get(key: string): any {
     if (key === 'config') {
       return this.config;
     }
@@ -185,26 +292,24 @@ export class Project {
     return Reflect.get(this.data, key);
   }
 
-  private documentsMap = new Map<string, DocumentModel>();
-
-  getDocument(id: string): DocumentModel | null {
+  getDocument(id: string): IDocumentModel | null {
     // 此处不能使用 this.documentsMap.get(id)，因为在乐高 rollback 场景，document.id 会被改成其他值
-    return this.documents.find(doc => doc.id === id) || null;
+    return this.documents.find((doc) => doc.id === id) || null;
   }
 
-  getDocumentByFileName(fileName: string): DocumentModel | null {
-    return this.documents.find(doc => doc.fileName === fileName) || null;
+  getDocumentByFileName(fileName: string): IDocumentModel | null {
+    return this.documents.find((doc) => doc.fileName === fileName) || null;
   }
 
   @action
-  createDocument(data?: RootSchema): DocumentModel {
+  createDocument(data?: IPublicTypeRootSchema): IDocumentModel {
     const doc = new DocumentModel(this, data || this?.data?.componentsTree?.[0]);
     this.documents.push(doc);
     this.documentsMap.set(doc.id, doc);
     return doc;
   }
 
-  open(doc?: string | DocumentModel | RootSchema): DocumentModel | null {
+  open(doc?: string | IDocumentModel | IPublicTypeRootSchema): IDocumentModel | null {
     if (!doc) {
       const got = this.documents.find((item) => item.isBlank());
       if (got) {
@@ -213,13 +318,13 @@ export class Project {
       doc = this.createDocument();
       return doc.open();
     }
-    if (typeof doc === 'string') {
-      const got = this.documents.find((item) => item.fileName === doc);
+    if (typeof doc === 'string' || typeof doc === 'number') {
+      const got = this.documents.find((item) => item.fileName === String(doc) || String(item.id) === String(doc));
       if (got) {
         return got.open();
       }
 
-      const data = this.data.componentsTree.find((data) => data.fileName === doc);
+      const data = this.data.componentsTree.find((data) => data.fileName === String(doc));
       if (data) {
         doc = this.createDocument(data);
         return doc.open();
@@ -230,11 +335,11 @@ export class Project {
       return doc.open();
     }
     //  else if (isPageSchema(doc)) {
-      // 暂时注释掉，影响了 diff 功能
-      // const foundDoc = this.documents.find(curDoc => curDoc?.rootNode?.id && curDoc?.rootNode?.id === doc?.id);
-      // if (foundDoc) {
-      //   foundDoc.remove();
-      // }
+    // 暂时注释掉，影响了 diff 功能
+    // const foundDoc = this.documents.find(curDoc => curDoc?.rootNode?.id && curDoc?.rootNode?.id === doc?.id);
+    // if (foundDoc) {
+    //   foundDoc.remove();
+    // }
     // }
 
     doc = this.createDocument(doc);
@@ -258,47 +363,39 @@ export class Project {
     });
   }
 
-  /**
-   * 提供给模拟器的参数
-   */
-  @computed get simulatorProps(): object {
-    let { simulatorProps } = this.designer;
-    if (typeof simulatorProps === 'function') {
-      simulatorProps = simulatorProps(this);
-    }
-    return {
-      ...simulatorProps,
-      project: this,
-      onMount: this.mountSimulator.bind(this),
-    };
-  }
-
-  private mountSimulator(simulator: ISimulatorHost) {
+  mountSimulator(simulator: ISimulatorHost) {
     // TODO: 多设备 simulator 支持
     this._simulator = simulator;
-    this.designer.editor.set('simulator', simulator);
     this.emitter.emit('lowcode_engine_simulator_ready', simulator);
   }
 
   setRendererReady(renderer: any) {
+    this.isRendererReady = true;
     this.emitter.emit('lowcode_engine_renderer_ready', renderer);
   }
 
   onSimulatorReady(fn: (args: any) => void): () => void {
+    if (this._simulator) {
+      fn(this._simulator);
+      return () => {};
+    }
     this.emitter.on('lowcode_engine_simulator_ready', fn);
     return () => {
       this.emitter.removeListener('lowcode_engine_simulator_ready', fn);
     };
   }
 
-  onRendererReady(fn: (args: any) => void): () => void {
+  onRendererReady(fn: () => void): () => void {
+    if (this.isRendererReady) {
+      fn();
+    }
     this.emitter.on('lowcode_engine_renderer_ready', fn);
     return () => {
       this.emitter.removeListener('lowcode_engine_renderer_ready', fn);
     };
   }
 
-  onCurrentDocumentChange(fn: (doc: DocumentModel) => void): () => void {
+  onCurrentDocumentChange(fn: (doc: IDocumentModel) => void): () => void {
     this.emitter.on('current-document.change', fn);
     return () => {
       this.emitter.removeListener('current-document.change', fn);
